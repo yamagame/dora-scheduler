@@ -93,7 +93,7 @@ export const loadBarData = () => async (dispatch, getState) => {
   }
 }
 
-export const saveBarData = (bars, callback) => async (dispatch, getState) => {
+const saveBarCommon = async (bars, callback, dispatch, getState) => {
   const { app: { user_id, signature, } } = getState();
   let response = await fetch('/bar/update', {
     method: 'POST',
@@ -107,6 +107,7 @@ export const saveBarData = (bars, callback) => async (dispatch, getState) => {
           rgba: toColor(bar.rgba),
         }
       }),
+      saveOnly: true,
       user_id,
       signature,
     }),
@@ -121,6 +122,10 @@ export const saveBarData = (bars, callback) => async (dispatch, getState) => {
   } else {
     console.log('ERROR');
   }
+}
+
+export const saveBarData = (bars, callback) => async (dispatch, getState) => {
+  await saveBarCommon(bars, callback, dispatch, getState);
   if (callback) callback();
 }
 
@@ -138,6 +143,7 @@ export const delBarData = (bars, callback) => async (dispatch, getState) => {
           rgba: toColor(bar.rgba),
         }
       }),
+      saveOnly: true,
       user_id,
       signature,
     }),
@@ -174,6 +180,9 @@ export const initialData = (params, callback) => async (dispatch, getState) => {
     });
     if (callback) callback();
   } else {
+    if (process.env.NODE_ENV === 'production') {
+      window.location = '/admin-page';
+    }
     console.log('ERROR');
   }
 }

@@ -243,7 +243,7 @@ export default class ScheduleView extends Component {
                 d.y = self.yScale.invert(d.oy);
               })
               .attr('d', self.drawRectangle)
-            self.updateBarSelectState();
+            self.updateBarSelectState(false);
           }
 
           const ended = () => {
@@ -263,7 +263,7 @@ export default class ScheduleView extends Component {
               self.setUndo(selectedBar.map( v => v.d ), self.selectedBar.map( v => v.d ));
               self.updateBarData(self.selectedBar);
             }
-            self.updateBarSelectState();
+            self.updateBarSelectState(false);
           }
 
           d3.event.on("drag", dragged).on("end", ended);
@@ -468,7 +468,7 @@ export default class ScheduleView extends Component {
     const { unit } = this.props;
     let x = d.x;
     let y = d.y;
-    if (d.grid) {
+    if (typeof d.grid === 'undefined' || d.grid) {
       y = Math.floor((y+unit/2)/unit)*unit;
     }
     if (d.type === 'calendar') {
@@ -909,7 +909,7 @@ export default class ScheduleView extends Component {
     this.redrawCursor();
   }
 
-  updateBarSelectState = () => {
+  updateBarSelectState = (redraw=true) => {
     const self = this;
     const bar = d3.select(this.bar);
     self.selectedBar = [];
@@ -942,6 +942,7 @@ export default class ScheduleView extends Component {
         return calcBarTitleYPostion(this, self, d, self.container.clientWidth);
       })
       .text(d => d.title)
+    if (this.props.onSelect && redraw) this.props.onSelect();
   }
 
   updateMarky = () => {
@@ -1074,7 +1075,7 @@ export default class ScheduleView extends Component {
 
       //t key
       if (e.keyCode === 84) {
-        this.moveToToday(new Date());
+        this.moveToDay(new Date());
       }
 
       //a key
@@ -1206,7 +1207,7 @@ export default class ScheduleView extends Component {
           })
           if (i === null) {
             d.type = 'roundrect';
-            d.grid = true;
+            //d.grid = true;
           }
           d.selected = true;
           return {
@@ -1288,7 +1289,7 @@ export default class ScheduleView extends Component {
     }
   }
 
-  moveToToday(date) {
+  moveToDay(date) {
     const time = date.getTime();
     // const width = this.clientWidth;
     const height = this.clientHeight;
@@ -1464,6 +1465,7 @@ export default class ScheduleView extends Component {
       <div
         ref={n => this.container = n}
         style={{
+          width: this.props.style.width+2,
           border: 'solid 1px lightgray',
         }}
       >
