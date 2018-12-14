@@ -71,11 +71,13 @@ class App extends Component {
 
   onMoveCenter = (payload) => {
     const { uuid } = payload;
-    this.state.barData.some( bar => {
-      if (bar.uuid === uuid) {
-        this.scheduleView.moveToCenter(bar);
-      }
-    })
+    this.props.loadBarData(barData => {
+      barData.some( bar => {
+        if (bar.uuid === uuid) {
+          this.scheduleView.moveToCenter(bar);
+        }
+      })
+    });
   }
 
   onMoveDay = (payload) => {
@@ -335,7 +337,7 @@ export default connect(
   }),
   dispatch => ( {
     setParams: (payload) => dispatch( setParams(payload) ),
-    loadBarData: () => dispatch( loadBarData() ),
+    loadBarData: (callback) => dispatch( loadBarData(callback) ),
     saveBarData: (bars, callback) => dispatch( saveBarData(bars, callback) ),
     delBarData: (bars, callback) => dispatch( delBarData(bars, callback) ),
   })

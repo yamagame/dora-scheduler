@@ -63,7 +63,7 @@ const toRGBA = function(text) {
   return [ 0x00, 0xFF, 0x00, 1];
 }
 
-export const loadBarData = () => async (dispatch, getState) => {
+export const loadBarData = (callback) => async (dispatch, getState) => {
   const { app: { user_id, signature, } } = getState();
   let response = await fetch('/bar/all', {
     method: 'POST',
@@ -84,6 +84,7 @@ export const loadBarData = () => async (dispatch, getState) => {
           signature,
         },
       });
+      if (callback) callback(data);
     } else {
       let data = await response.text();
       console.log(data);
