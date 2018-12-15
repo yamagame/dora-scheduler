@@ -17,7 +17,16 @@ function rect(x1, y1, x2, y2) {
   return `M ${x1},${y1} L ${x2},${y1} L ${x2},${y2} L ${x1},${y2} z`;
 }
 
-function gridFit(self, x) {
+function gridFitX(self, x) {
+  const { unit } = self.props;
+  if (x < 0) {
+    return parseInt((x-Utils.timeZoneOffset)/unit)*unit-unit+Utils.timeZoneOffset;
+  } else {
+    return parseInt((x-Utils.timeZoneOffset)/unit)*unit+Utils.timeZoneOffset;
+  }
+}
+
+function gridFitY(self, x) {
   const { unit } = self.props;
   if (x < 0) {
     return parseInt(x/unit)*unit-unit;
@@ -133,7 +142,7 @@ export default class ScheduleView extends Component {
             self.updateBarSelectState();
           }
           const ended = (d) => {
-            let x = Math.floor((d.x+unit/2)/unit)*unit;
+            let x = Math.floor((d.x-Utils.timeZoneOffset+unit/2)/unit)*unit+Utils.timeZoneOffset;
             let dx = x-d.x;
             d.x = x;
             d.width -= dx;
@@ -250,7 +259,7 @@ export default class ScheduleView extends Component {
             bar.selectAll('path.body.selected')
               .each((d) => {
                 if (!readOnly(d)) {
-                  d.x = Math.floor((d.x+unit/2)/unit)*unit;
+                  d.x = Math.floor((d.x-Utils.timeZoneOffset+unit/2)/unit)*unit+Utils.timeZoneOffset;
                 }
                 d.y = Math.floor((d.y+unit/2)/unit)*unit;
               })
@@ -274,16 +283,26 @@ export default class ScheduleView extends Component {
       .on('start', function(d, i) {
         const marky = d3.select(self.marky);
         const bar = d3.select(self.bar);
+        let doDrag = false;
         let x = d3.event.x;
         let y = d3.event.y;
-        self.markyData.x = d3.event.x;
-        self.markyData.y = d3.event.y;
-        self.markyData.width = 0;
+        self.markyData.x = x;
+        self.markyData.y = y;
+        self.markyData.width  = 0;
         self.markyData.height = 0;
         const dragged = (d) => {
+          if (!doDrag) {
+            x = d3.event.x;
+            y = d3.event.y;
+            self.markyData.x = x;
+            self.markyData.y = y;
+            self.markyData.width  = 0;
+            self.markyData.height = 0;
+            doDrag = true;
+          }
           x += d3.event.dx;
           y += d3.event.dy;
-          self.markyData.width = x-self.markyData.x;
+          self.markyData.width  = x-self.markyData.x;
           self.markyData.height = y-self.markyData.y;
           marky.selectAll('path')
             .attr('visibility', 'visible')
@@ -295,7 +314,7 @@ export default class ScheduleView extends Component {
 
           let x1 = self.xScale.invert(self.markyData.x);
           let y1 = self.yScale.invert(self.markyData.y);
-          let x2 = self.xScale.invert(self.markyData.x+self.markyData.width);
+          let x2 = self.xScale.invert(self.markyData.x+self.markyData.width );
           let y2 = self.yScale.invert(self.markyData.y+self.markyData.height);
           let t;
 
@@ -381,8 +400,8 @@ export default class ScheduleView extends Component {
             var coords = d3.mouse(this);
             if (!self.props.readonly) {
               if (coords[1] > self.yScale(unit*3)-self.yScale(0) && self.selectedBar.length === 0) {
-                const cx = gridFit(self, self.xScale.invert(coords[0]));
-                const cy = gridFit(self, self.yScale.invert(coords[1]));
+                const cx = gridFitX(self, self.xScale.invert(coords[0]));
+                const cy = gridFitY(self, self.yScale.invert(coords[1]));
                 if (cx === self.cursorData.x && cy === self.cursorData.y) {
                   self.cursorData.visible = (self.cursorData.visible === 'visible')?'hidden':'visible';
                 } else {
@@ -495,7 +514,7 @@ export default class ScheduleView extends Component {
     if (d.type === 'marky') {
       return rect(
         x, y,
-        x + d.width, y+d.height
+        x+d.width, y+d.height
       );
     } else
     if (d.type === 'roundrect') {
@@ -569,17 +588,17 @@ export default class ScheduleView extends Component {
     const { unit } = this.props;
     const ox = Math.floor(this.xScale.invert(0) / (unit * 2)) * (unit * 2);
     const oy = Math.floor(this.yScale.invert(0) / (unit * 2)) * (unit * 2);
-    const dx = Math.floor(this.xScale.invert(this.container.clientWidth) / (unit * 2)) * (unit * 2);
+    const dx = Math.floor((this.xScale.invert(this.container.clientWidth)-Utils.timeZoneOffset) / (unit * 2)) * (unit * 2);
     const dy = Math.floor(this.yScale.invert(this.container.clientHeight) / (unit * 2)) * (unit * 2);
     this.gridData = []
     for (var y = oy; y < dy + (unit * 2); y += (unit * 2)) {
       this.gridData.push({
-        x: 0, y: y, width: unit, height: unit, color: 'rgba(220,255,255,0.5)', type: 'horizontal',
+        x: 0+Utils.timeZoneOffset, y: y, width: unit, height: unit, color: 'rgba(220,255,255,0.5)', type: 'horizontal',
       })
     }
     for (var x = ox; x < dx + (unit * 2); x += (unit * 2)) {
       this.gridData.push({
-        x: x, y: 0, width: unit, height: unit, color: 'rgba(220,220,255,0.2)', type: 'vertical',
+        x: x+Utils.timeZoneOffset, y: 0, width: unit, height: unit, color: 'rgba(220,220,255,0.2)', type: 'vertical',
       })
     }
   }
@@ -589,7 +608,7 @@ export default class ScheduleView extends Component {
     this.calendarData = [];
     const r1 = this.xScale.invert(0);
     const x1 = Math.floor(this.xScale.invert(0)/unit)*unit;
-    const x2 = this.xScale.invert(this.container.clientWidth);
+    const x2 = this.xScale.invert(this.container.clientWidth)-+Utils.timeZoneOffset;
     const years = {};
     const month = {};
     const unitTime = unit*unitScale;
@@ -618,7 +637,7 @@ export default class ScheduleView extends Component {
         color = "rgba(220,220,255,255)";
       }
       this.calendarData.push({
-        x: x, y: unit*2, width: unit, height: unit, color, type: 'calendar', text: date.getDate(), time: date,
+        x: x+Utils.timeZoneOffset, y: unit*2, width: unit, height: unit, color, type: 'calendar', text: date.getDate(), time: date,
       })
     }
 
@@ -627,7 +646,13 @@ export default class ScheduleView extends Component {
       const v = years[k];
       const color = "rgba(255,255,255,255)";
       this.calendarData.push({
-        x: Math.max(v.start/unitScale, r1), y: 0, width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)), height: unit, color, type: 'calendar', text: k,
+        x: Math.max(v.start/unitScale+Utils.timeZoneOffset, r1),
+        y: 0,
+        width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)),
+        height: unit,
+        color,
+        type: 'calendar',
+        text: k,
       })
     })
 
@@ -642,7 +667,13 @@ export default class ScheduleView extends Component {
         color = "rgba(225,225,225,255)";
       }
       this.calendarData.push({
-        x: Math.max(v.start/unitScale, r1), y: unit, width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)), height: unit, color, type: 'calendar', text: k+1,
+        x: Math.max(v.start/unitScale, r1)+Utils.timeZoneOffset,
+        y: unit,
+        width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)),
+        height: unit,
+        color,
+        type: 'calendar',
+        text: k+1,
       })
     })
   }
@@ -668,14 +699,14 @@ export default class ScheduleView extends Component {
     const today = new Date();
     const x = parseInt((today.getTime()/unitScale+unit/2)/unit)*unit;
     return [
-      { x: x, y: unit*2, height: unit, width: unit, color: 'rgba(0,255,0,0.6)', type: 'calendar-circle', }
+      { x: x+Utils.timeZoneOffset, y: unit*2, height: unit, width: unit, color: 'rgba(0,255,0,0.6)', type: 'calendar-circle', }
     ]
   }
 
   calendarSelectRectangles = () => {
     const { unit, unitScale } = this.props;
     if (this.state.selectDay) {
-      const x = this.state.selectDay.getTime()/unitScale;
+      const x = this.state.selectDay.getTime()/unitScale+Utils.timeZoneOffset;
       return [
         { x, y: unit*2, height: unit, width: unit, color: 'rgba(128,255,0,0.2)', type: 'calendar-select', }
       ]

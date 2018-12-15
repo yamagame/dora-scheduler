@@ -9,6 +9,7 @@ export const actionTypes = {
 
 export const initialState = {
   app: {
+    barData: [],
   },
 }
 
@@ -63,10 +64,14 @@ const toRGBA = function(text) {
   return [ 0x00, 0xFF, 0x00, 1];
 }
 
-export const loadBarData = (callback) => async (dispatch, getState) => {
-  const { app: { user_id, signature, } } = getState();
+export const loadBarData = (params, callback) => async (dispatch, getState) => {
+  const { app: { user_id, signature, barData, } } = getState();
   let response = await fetch('/bar/all', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(params),
   });
   if (response.ok) {
     var contentType = response.headers.get("content-type");
@@ -76,6 +81,21 @@ export const loadBarData = (callback) => async (dispatch, getState) => {
         bar.rgba = toRGBA(bar.rgba);
         return bar;
       })
+      const bars = [ ...barData ];
+      data.forEach( d => {
+        if (!bars.some( b => {
+          if (b.uuid === d.uuid) {
+            Object.keys(d).forEach( k => {
+              b[k] = d[k];
+            })
+            return true;
+          }
+          return false;
+        })) {
+          bars.push(d);
+        }
+      })
+      data = bars;
       dispatch({
         type: SET_PARAMS,
         payload: {
@@ -131,7 +151,7 @@ export const saveBarData = (bars, callback) => async (dispatch, getState) => {
 }
 
 export const delBarData = (bars, callback) => async (dispatch, getState) => {
-  const { app: { user_id, signature, } } = getState();
+  const { app: { user_id, signature, barData, } } = getState();
   let response = await fetch('/bar/delete', {
     method: 'POST',
     headers: {

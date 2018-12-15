@@ -4,6 +4,7 @@ const timeZoneOffset = (new Date()).getTimezoneOffset()*60*1000;
 
 export default function({ unit, unitScale, }) {
   return {
+    timeZoneOffset: parseInt(timeZoneOffset/unitScale),
     timePosition: function(millisecond) {
       return millisecond/unitScale;
     },

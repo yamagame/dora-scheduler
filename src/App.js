@@ -65,13 +65,13 @@ class App extends Component {
     });
   }
 
-  onUpdateSchedule = () => {
-    this.props.loadBarData();
+  onUpdateSchedule = (params) => {
+    this.props.loadBarData(params);
   }
 
   onMoveCenter = (payload) => {
     const { uuid } = payload;
-    this.props.loadBarData(barData => {
+    this.props.loadBarData({ bars: [{ uuid }] }, barData => {
       barData.some( bar => {
         if (bar.uuid === uuid) {
           this.scheduleView.moveToCenter(bar);
@@ -197,7 +197,23 @@ class App extends Component {
     if(event.keyCode === 8 || event.keyCode === 46) {
       const delBars = this.scheduleView.removeSelectedBar();
       if (delBars.length > 0) {
-        this.props.delBarData(delBars);
+        const b = {};
+        this.state.barData.forEach( d => {
+          b[d.uuid] = d;
+        })
+        delBars.forEach( d => {
+          delete b[d.uuid];
+        })
+        this.props.delBarData(delBars, () => {
+          const barData = Object.keys(b).map( uuid => b[uuid] );
+          this.props.setParams({ barData }, () => {
+            this.setState({
+              barData,
+            }, () => {
+              console.log(this.state.barData);
+            })
+          })
+        });
       }
     }
   }
@@ -337,7 +353,7 @@ export default connect(
   }),
   dispatch => ( {
     setParams: (payload) => dispatch( setParams(payload) ),
-    loadBarData: (callback) => dispatch( loadBarData(callback) ),
+    loadBarData: (params, callback) => dispatch( loadBarData(params, callback) ),
     saveBarData: (bars, callback) => dispatch( saveBarData(bars, callback) ),
     delBarData: (bars, callback) => dispatch( delBarData(bars, callback) ),
   })
