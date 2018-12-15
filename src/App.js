@@ -210,7 +210,7 @@ class App extends Component {
             this.setState({
               barData,
             }, () => {
-              console.log(this.state.barData);
+              //console.log(this.state.barData);
             })
           })
         });
