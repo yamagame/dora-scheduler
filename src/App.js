@@ -6,6 +6,7 @@ import ScheduleEditDialog from './components/ScheduleEditDialog';
 import {
   setParams,
   loadBarData,
+  createBarData,
   saveBarData,
   delBarData,
 } from './reducers';
@@ -129,6 +130,20 @@ class App extends Component {
     // }));
   }
 
+  createBarData = (barData) => {
+    const bars = barData.map( v => {
+      const t = { ...v }
+      delete t.selected;
+      return t;
+    })
+    this.props.createBarData(bars);
+    // AsyncStorage.setItem('barData', this.state.barData.map( v => {
+    //   const t = { ...v }
+    //   delete t.selected;
+    //   return t;
+    // }));
+  }
+
   onCreate = (d) => {
     const barData = this.state.barData;
     const col = this.state.color;
@@ -136,7 +151,7 @@ class App extends Component {
     barData.push(d);
     this.setState({
       barData,
-    }, () => this.saveBarData([d]))
+    }, () => this.createBarData([d]))
   }
 
   onChange = (event) => {
@@ -354,6 +369,7 @@ export default connect(
   dispatch => ( {
     setParams: (payload) => dispatch( setParams(payload) ),
     loadBarData: (params, callback) => dispatch( loadBarData(params, callback) ),
+    createBarData: (bars, callback) => dispatch( createBarData(bars, callback) ),
     saveBarData: (bars, callback) => dispatch( saveBarData(bars, callback) ),
     delBarData: (bars, callback) => dispatch( delBarData(bars, callback) ),
   })
