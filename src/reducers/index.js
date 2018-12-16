@@ -64,7 +64,7 @@ const toRGBA = function(text) {
   return [ 0x00, 0xFF, 0x00, 1];
 }
 
-export const loadBarData = (params, callback) => async (dispatch, getState) => {
+export const loadBarData = (params={}, callback) => async (dispatch, getState) => {
   const { app: { user_id, signature, barData, } } = getState();
   let response = await fetch('/bar/all', {
     method: 'POST',
@@ -81,21 +81,23 @@ export const loadBarData = (params, callback) => async (dispatch, getState) => {
         bar.rgba = toRGBA(bar.rgba);
         return bar;
       })
-      const bars = [ ...barData ];
-      data.forEach( d => {
-        if (!bars.some( b => {
-          if (b.uuid === d.uuid) {
-            Object.keys(d).forEach( k => {
-              b[k] = d[k];
-            })
-            return true;
+      if (typeof params.bars !== 'undefined') {
+        const bars = [ ...barData ];
+        data.forEach( d => {
+          if (!bars.some( b => {
+            if (b.uuid === d.uuid) {
+              Object.keys(d).forEach( k => {
+                b[k] = d[k];
+              })
+              return true;
+            }
+            return false;
+          })) {
+            bars.push(d);
           }
-          return false;
-        })) {
-          bars.push(d);
-        }
-      })
-      data = bars;
+        })
+        data = bars;
+      }
       dispatch({
         type: SET_PARAMS,
         payload: {
