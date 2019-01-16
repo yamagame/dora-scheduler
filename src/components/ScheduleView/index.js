@@ -1093,7 +1093,7 @@ export default class ScheduleView extends Component {
       }
 
       //command+z
-      if(e.metaKey && e.keyCode === 90) {
+      if((e.ctrlKey || e.metaKey) && e.keyCode === 90) {
         e.preventDefault();
         if (!this.props.readonly) {
           if (e.shiftKey) {
@@ -1192,6 +1192,30 @@ export default class ScheduleView extends Component {
         e.preventDefault();
         if (!this.props.readonly) {
           this.onKeyDown_(e);
+        }
+      }
+      //d key
+      if((e.ctrlKey || e.metaKey) && e.keyCode == 68) {
+        e.preventDefault();
+        const newBars = [];
+        if (this.selectedBar.length > 0) {
+          this.selectedBar.forEach( b => {
+            newBars.push({ ...b.d })
+          })
+        }
+        if (newBars.length > 0) {
+          newBars.forEach( b => {
+            b.uuid = uuidv4();
+            b.y += unit;
+          })
+          this.setUndo([null], newBars, 'new');
+          newBars.forEach( b => {
+            this.onCreate(b)
+          })
+          const bar = d3.select(this.bar);
+          bar.selectAll('path').classed('selected', false).each(d => d.selected = false);
+          this.updateBarSelectState();
+          this.updateBar();
         }
       }
     }
@@ -1499,25 +1523,25 @@ export default class ScheduleView extends Component {
           width: this.props.style.width+2,
           border: 'solid 1px lightgray',
         }}
+        tabIndex={0}
+        focusable={true}
+        onFocus={this.onFocus}
+        onBlur={this.onBlur}
+        onKeyDown={this.onKeyDown}
+        onKeyPress={this.onKeyPress}
+        onKeyUp={this.onKeyUp}
+        onMouseMove={this.onMouseMove}
+        onMouseOut={this.onMouseOut}
+        onMouseOver={this.onMouseOver}
+        onMouseUp={this.onMouseUp}
+        onMouseEnter={this.onMouseEnter}
+        onMouseLeave={this.onMouseLeave}
       >
         <svg
           ref={n => this.svg = n}
           style={{
             ...this.props.style,
           }}
-          tabIndex={0}
-          focusable={true}
-          onFocus={this.onFocus}
-          onBlur={this.onBlur}
-          onKeyDown={this.onKeyDown}
-          onKeyPress={this.onKeyPress}
-          onKeyUp={this.onKeyUp}
-          onMouseMove={this.onMouseMove}
-          onMouseOut={this.onMouseOut}
-          onMouseOver={this.onMouseOver}
-          onMouseUp={this.onMouseUp}
-          onMouseEnter={this.onMouseEnter}
-          onMouseLeave={this.onMouseLeave}
         >
           <g
             ref={n => this.base = n}
