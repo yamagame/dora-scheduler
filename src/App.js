@@ -145,7 +145,7 @@ class App extends Component {
   }
 
   onCreate = (d) => {
-    const barData = this.state.barData;
+    const barData = [ ...this.state.barData ];
     const col = this.state.color;
     d.rgba = [ col.r, col.g, col.b, col.a ];
     barData.push(d);

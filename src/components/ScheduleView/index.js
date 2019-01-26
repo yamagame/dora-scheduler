@@ -1240,11 +1240,11 @@ export default class ScheduleView extends Component {
             b.y += unit;
           })
           this.setUndo([null], newBars, 'new');
+          const bar = d3.select(this.bar);
+          bar.selectAll('path').classed('selected', false).each(d => d.selected = false);
           newBars.forEach( b => {
             this.onCreate(b)
           })
-          const bar = d3.select(this.bar);
-          bar.selectAll('path').classed('selected', false).each(d => d.selected = false);
           this.updateBarSelectState();
           this.updateBar();
         }
