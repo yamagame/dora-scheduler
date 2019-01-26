@@ -451,6 +451,7 @@ export default class ScheduleView extends Component {
     this.updateGrid();
     this.updateCalendarRectangles();
     this.updateCalendar();
+    this.redrawCursor();
     const bar = d3.select(this.bar);
     const text = d3.select(this.text);
     bar.selectAll('path.body')
