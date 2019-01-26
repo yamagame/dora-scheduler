@@ -370,13 +370,14 @@ export default class ScheduleView extends Component {
         this.updateCalendarRectangles();
         this.updateCalendar();
         const bar = d3.select(this.bar);
+        const text = d3.select(this.text);
         bar.selectAll('path.body')
           .attr('d', this.drawRectangle)
         bar.selectAll('path.left')
           .attr('d', this.drawLeftHandle)
         bar.selectAll('path.right')
           .attr('d', this.drawRightHandle)
-        bar.selectAll('text.title')
+        text.selectAll('text.title')
           .attr('x', function(d) {
             return calcBarTitleXPostion(this, self, d, self.container.clientWidth);
           })
@@ -451,13 +452,14 @@ export default class ScheduleView extends Component {
     this.updateCalendarRectangles();
     this.updateCalendar();
     const bar = d3.select(this.bar);
+    const text = d3.select(this.text);
     bar.selectAll('path.body')
       .attr('d', this.drawRectangle)
     bar.selectAll('path.left')
       .attr('d', this.drawLeftHandle)
     bar.selectAll('path.right')
       .attr('d', this.drawRightHandle)
-    bar.selectAll('text.title')
+    text.selectAll('text.title')
       .attr('x', function(d) {
         return calcBarTitleXPostion(this, self, d, width);
       })
@@ -566,20 +568,23 @@ export default class ScheduleView extends Component {
 
   updateBarData = (bars) => {
     const barData = [ ...this.state.barData ];
+    const updateBars = [];
     bars.forEach( v => {
       if (v.i == null) {
         barData.push(v.d);
+        updateBars.push(v.d)
       } else {
         Object.keys(v.d).forEach( k => {
           barData[v.i][k] = v.d[k];
         })
+        updateBars.push(barData[v.i])
       }
     })
     this.setState({
       barData,
     }, () => {
       this.onChange({
-        bars: barData,
+        bars: updateBars,
       })
     })
   }
@@ -751,9 +756,9 @@ export default class ScheduleView extends Component {
       .attr('stroke-width', 1)
       .attr('fill', (d) => {
         if (d.selected) {
-          return ('color' in d) ? d.color : `rgba(${d.rgba[0]*0.8},${d.rgba[1]*0.8},${d.rgba[2]*0.8},${d.rgba[3]})`;
+          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
         }
-        return ('color' in d) ? d.color : `rgba(${d.rgba[0]},${d.rgba[1]},${d.rgba[2]},${d.rgba[3]})`;
+        return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
       })
       .attr('d', this.drawRectangle)
       .on('click', (d) => {
@@ -811,9 +816,9 @@ export default class ScheduleView extends Component {
       .attr('d', this.drawRectangle)
       .attr('fill', (d) => {
         if (d.selected) {
-          return ('color' in d) ? d.color : `rgba(${d.rgba[0]*0.8},${d.rgba[1]*0.8},${d.rgba[2]*0.8},${d.rgba[3]})`;
+          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
         }
-        return ('color' in d) ? d.color : `rgba(${d.rgba[0]},${d.rgba[1]},${d.rgba[2]},${d.rgba[3]})`;
+        return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
       })
   }
 
@@ -855,23 +860,45 @@ export default class ScheduleView extends Component {
   updateBar = () => {
     const self = this;
     const bar = d3.select(this.bar);
+    const text = d3.select(this.text);
     self.selectedBar = [];
 
     bar.selectAll('g')
       .remove();
 
-    const path = bar
+    text.selectAll('g')
+      .remove();
+
+    // const path = bar
+    //   .selectAll('g.bar')
+    //   .data(this.barRectangles())
+ 
+    const g = bar
       .selectAll('g.bar')
       .data(this.barRectangles())
+      .enter()
+      .append('g')
+      .classed('bar', true)
+      .attr('x', 0)
+      .attr('y', 0);
  
-    const g = path.enter()
+    const g2 = text
+      .selectAll('g.text')
+      .data(this.barRectangles())
+      .enter()
       .append('g')
       .classed('bar', true)
       .attr('x', 0)
       .attr('y', 0);
 
-    path.exit()
-      .remove();
+    // bar
+    //   .selectAll('g.bar')
+    //   .data(this.barRectangles())
+    //   .exit()
+    //   .remove();
+
+    // path.exit()
+    //   .remove();
 
     g.append('g')
       .append('path')
@@ -885,9 +912,9 @@ export default class ScheduleView extends Component {
       .attr('stroke-width', 2)
       .attr('fill', (d) => {
         if (d.selected) {
-          return ('color' in d) ? d.color : `rgba(${d.rgba[0]*0.8},${d.rgba[1]*0.8},${d.rgba[2]*0.8},${d.rgba[3]})`;
+          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
         }
-        return ('color' in d) ? d.color : `rgba(${d.rgba[0]},${d.rgba[1]},${d.rgba[2]},${d.rgba[3]})`;
+        return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
       })
       .attr('d', this.drawRectangle)
       .style('cursor', 'move')
@@ -920,7 +947,7 @@ export default class ScheduleView extends Component {
         self.onEdit(d, i);
       })
 
-    g.append('g')
+    g2.append('g')
       .append('text')
       .classed('title', true)
       .attr('x', function(d) {
@@ -931,11 +958,12 @@ export default class ScheduleView extends Component {
       })
       .attr('font-size', this.xScale(16)-this.xScale(0))
       .style('pointer-events', 'none')
+      .style('zIndex', 10)
       .text(d => d.title)
       .attr("text-anchor", "start")
-      .attr("alignment-baseline", "baseline")
+      .attr("alignment-baseline", "auto")
 
-    g.exit().remove()
+    //g.exit().remove()
 
     this.redrawCursor();
   }
@@ -943,6 +971,7 @@ export default class ScheduleView extends Component {
   updateBarSelectState = (redraw=true) => {
     const self = this;
     const bar = d3.select(this.bar);
+    const text = d3.select(this.text);
     self.selectedBar = [];
     bar
       .selectAll('path.body')
@@ -953,9 +982,9 @@ export default class ScheduleView extends Component {
       })
       .attr('fill', (d) => {
         if (d.selected) {
-          return ('color' in d) ? d.color : `rgba(${d.rgba[0]*0.8},${d.rgba[1]*0.8},${d.rgba[2]*0.8},${d.rgba[3]})`;
+          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
         }
-        return ('color' in d) ? d.color : `rgba(${d.rgba[0]},${d.rgba[1]},${d.rgba[2]},${d.rgba[3]})`;
+        return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
       })
       .attr('d', this.drawRectangle)
     bar
@@ -964,7 +993,8 @@ export default class ScheduleView extends Component {
     bar
       .selectAll('path.right')
       .attr('d', this.drawRightHandle)
-    bar
+
+    text
       .selectAll('text.title')
       .attr('x', function(d) {
         return calcBarTitleXPostion(this, self, d, self.container.clientWidth);
@@ -1385,32 +1415,35 @@ export default class ScheduleView extends Component {
   }
 
   insertLine(delta=unit) {
+    const barData = [ ...this.state.barData ]
     var data=[];
-    var y;
-    this.state.barData.forEach( v => {
-      if (v.selected) {
-        if (y==null || y > v.y) {
-          y = v.y;
-        }
-      }
-    });
+    var y = this.cursorData.y;
+    if (this.cursorData.visible !== 'visible') return;
+    // this.state.barData.forEach( v => {
+    //   if (v.selected) {
+    //     if (y==null || y > v.y) {
+    //       y = v.y;
+    //     }
+    //   }
+    // });
     if (delta < 0) {
-      for (let i in this.state.barData) {
-        if (this.state.barData[i].y >= y-unit && this.state.barData[i].y < y) {
+      for (let i in barData) {
+        if (barData[i].y >= y-unit && barData[i].y < y) {
           return
         }
       }
     }
+    this.cursorData.y += delta;
     if (y!=null) {
-      for (let i in this.state.barData) {
-        const barData = [ ...this.state.barData ]
+      for (let i in barData) {
         if (barData[i].y >= y) {
           barData[i].y += delta;
+          data.push({ d: barData[i], i });
         }
-        data.push({ d: barData[i], i });
       }
     }
     this.updateBarData(data);
+    this.redrawCursor();
   }
 
   removeLine() {
@@ -1556,6 +1589,7 @@ export default class ScheduleView extends Component {
             <g ref={n => this.grid = n} />
             <g ref={n => this.cursor = n} />
             <g ref={n => this.bar = n} />
+            <g ref={n => this.text = n} />
             <g ref={n => this.marky = n} />
             <g ref={n => this.calendar = n} />
           </g>

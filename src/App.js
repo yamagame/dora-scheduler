@@ -157,9 +157,9 @@ class App extends Component {
   onChange = (event) => {
     if ('bars' in event) {
       this.setState({
-        barData: event.bars,
+        barData: this.state.barData,
       }, () => {
-        this.saveBarData(event.bars.filter( bar => bar.selected))
+        this.saveBarData(event.bars)
       })
     }
     if ('position' in event) {
@@ -260,8 +260,8 @@ class App extends Component {
     const { width, height } = this.state;
     const popover = {
       position: 'absolute',
-      zIndex: '2',
-      top: 26,
+      zIndex: 1100,
+      top: 46,
       left: 10,
     }
     const cover = {
@@ -279,15 +279,15 @@ class App extends Component {
         boxShadow: '0 0 0 1px rgba(0,0,0,.1)',
         display: 'inline-block',
         cursor: 'pointer',
-        marginLeft: 10,
+        marginLeft: 0,
         marginTop: 0,
         marginBottom: 0,
-        position: 'absolute',
+        //position: 'absolute',
         top: 0,
       },
       color: {
-        width: '36px',
-        height: '16px',
+        width: '42px',
+        height: '22px',
         borderRadius: '2px',
         background: `rgba(${ this.state.color.r }, ${ this.state.color.g }, ${ this.state.color.b }, ${ this.state.color.a })`,
       },
@@ -296,20 +296,36 @@ class App extends Component {
       <div
         className="App"
         style={{
-          width,
-          height,
+          width: width,
+          height: height-20,
           margin: 0,
         }}
       >
         <div className="App-header">
-          <div style={ styles.swatch } onClick={ this.changeColor }>
-            <div style={ styles.color } />
-          </div>
+          <nav className="navbar sticky-top navbar-light bg-light">
+            <div style={ styles.swatch } onClick={ this.changeColor }>
+              <div style={ styles.color } />
+            </div>
+            {/* <div>
+              <a
+                href="https://docs.google.com/presentation/d/1QmfyJHkg_8y5yuyrvERJvfAd0OBPntpdwwdnrJailGo/edit?usp=sharing"
+                target="manual"
+                className="btn btn-sm btn-outline-secondary"
+                style={{marginRight: 10}}
+                role="button"
+              >使い方</a>
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                type="button"
+                onClick={this.openScheduleDataDialog}
+              >データ</button>
+            </div> */}
+          </nav>
         </div>
         <div
           style={{
             width: width-30,
-            height: height-30-25+4,
+            height: height-30-25+4-25,
             margin: 10,
           }}
         >
@@ -317,7 +333,7 @@ class App extends Component {
             ref={ n => this.scheduleView = n }
             style={{
               width: width-1-20,
-              height: height-4-20-25+4,
+              height: height-4-20-25+4-25,
             }}
             position={this.state.position}
             scale={this.state.scale}
@@ -333,7 +349,7 @@ class App extends Component {
         </div>
         <ScheduleEditDialog
           show={this.state.showEditDialog}
-          height={this.state.height-340}
+          height={this.state.height-360}
           uuid={this.state.editBar.d.uuid}
           text={this.state.editBar.d.text}
           title={this.state.editBar.d.title}
