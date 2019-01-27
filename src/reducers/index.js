@@ -38,7 +38,7 @@ export const setParams = (payload) => async (dispatch, getState) => {
 
 const toColor = function(rgba) {
   const toHex = (v) => {
-    return ('00'+v.toString(16)).substr(-2);
+    return ('00'+parseInt(v).toString(16)).substr(-2);
   }
   return `#${toHex(rgba[0])}${toHex(rgba[1])}${toHex(rgba[2])}${toHex(rgba[3]*0xFF)}`.toUpperCase();
 }
@@ -188,6 +188,50 @@ export const delBarData = (bars, callback) => async (dispatch, getState) => {
     console.log('ERROR');
   }
   if (callback) callback();
+}
+
+export const saveCalendarData = (calendarData, callback) => async (dispatch, getState) => {
+  const { app: { user_id, signature, } } = getState();
+  let response = await fetch('/calendar', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      calendarData,
+      user_id,
+      signature,
+    }),
+  });
+  if (response.ok) {
+    var contentType = response.headers.get("content-type");
+    if(contentType && contentType.includes("application/json")) {
+      let data = await response.json();
+      if (callback) callback(null, data);
+      return;
+    }
+  } else {
+    console.log('ERROR');
+  }
+}
+
+export const loadCalendarData = (callback) => async (dispatch, getState) => {
+  let response = await fetch('/calendar', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+  });
+  if (response.ok) {
+    var contentType = response.headers.get("content-type");
+    if(contentType && contentType.includes("application/json")) {
+      let data = await response.json();
+      if (callback) callback(null, data);
+      return;
+    }
+  } else {
+    console.log('ERROR');
+  }
 }
 
 export const initialData = (params, callback) => async (dispatch, getState) => {
