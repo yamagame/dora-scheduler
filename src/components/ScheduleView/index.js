@@ -75,6 +75,7 @@ export default class ScheduleView extends Component {
     this.state = {
       selectDay: null,
       barData: props.barData,
+      calendarData: props.calendarData,
     }
     this.currentColor = [ 0, 255, 0 , 1 ];
     this.focusDelayTimer = null;
@@ -484,6 +485,14 @@ export default class ScheduleView extends Component {
         this.updateBar();
       })
     }
+    if (this.props.calendarData !== nextProps.calendarData) {
+      this.setState({
+        calendarData: nextProps.calendarData,
+      }, () => {
+        this.updateCalendarRectangles();
+        this.updateCalendar();
+      })
+    }
   }
 
   drawRectangle = (d) => {
@@ -635,15 +644,28 @@ export default class ScheduleView extends Component {
       } else {
         month[date.getMonth()].end = endTime;
       }
-      let color = "rgba(255,255,255,255)";
+      let color = "#FFFFFFFF";
       if (day === 0) {
-        color = "rgba(255,220,220,255)";
+        color = "#FFDCDCFF";
       } else
       if (day === 6) {
-        color = "rgba(220,220,255,255)";
+        color = "#DCDCFFFF";
+      }
+      if (this.state.calendarData[Utils.dateStr(date)]) {
+        const d = this.state.calendarData[Utils.dateStr(date)];
+        if ('color' in d) {
+          color = d.color;
+        }
       }
       this.calendarData.push({
-        x: x+Utils.timeZoneOffset, y: unit*2, width: unit, height: unit, color, type: 'calendar', text: date.getDate(), time: date,
+        x: x+Utils.timeZoneOffset,
+        y: unit*2,
+        width: unit,
+        height: unit,
+        color,
+        type: 'calendar',
+        text: date.getDate(),
+        time: date,
       })
     }
 
@@ -762,18 +784,36 @@ export default class ScheduleView extends Component {
         return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
       })
       .attr('d', this.drawRectangle)
-      .on('click', (d) => {
+      .on('dblclick', (d) => {
         if (d.time) {
-          if (this.state.selectDay && d.time.getTime() === this.state.selectDay.getTime()) {
-            this.setState({
-              selectDay: null,
-            })
+          const t = Utils.dateStr(d.time);
+          const calendarData = { ...this.state.calendarData }
+          const v = calendarData[t];
+          if (v) {
+            delete calendarData[t];
           } else {
-            this.setState({
-              selectDay: d.time,
-            })
+            calendarData[t] = { color: '#FFDCDCFF' }
+          }
+          this.setState({
+            calendarData,
+          })
+          if (this.props.onEditCalendar) {
+            this.props.onEditCalendar(calendarData);
           }
         }
+      })
+      .on('click', (d) => {
+        // if (d.time) {
+        //   if (this.state.selectDay && d.time.getTime() === this.state.selectDay.getTime()) {
+        //     this.setState({
+        //       selectDay: null,
+        //     })
+        //   } else {
+        //     this.setState({
+        //       selectDay: d.time,
+        //     })
+        //   }
+        // }
       })
 
     calendar
@@ -912,10 +952,14 @@ export default class ScheduleView extends Component {
       })
       .attr('stroke-width', 2)
       .attr('fill', (d) => {
-        if (d.selected) {
-          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
+        try {
+          if (d.selected) {
+            return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
+          }
+          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
+        } catch(err) {
+          return '#00FF00';
         }
-        return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
       })
       .attr('d', this.drawRectangle)
       .style('cursor', 'move')
@@ -982,10 +1026,14 @@ export default class ScheduleView extends Component {
         }
       })
       .attr('fill', (d) => {
-        if (d.selected) {
-          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
+        try {
+          if (d.selected) {
+            return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0]*0.8)},${parseInt(d.rgba[1]*0.8)},${parseInt(d.rgba[2]*0.8)},${d.rgba[3]})`;
+          }
+          return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
+        } catch(err) {
+          return '#00FF00';
         }
-        return ('color' in d) ? d.color : `rgba(${parseInt(d.rgba[0])},${parseInt(d.rgba[1])},${parseInt(d.rgba[2])},${d.rgba[3]})`;
       })
       .attr('d', this.drawRectangle)
     bar
@@ -1107,6 +1155,34 @@ export default class ScheduleView extends Component {
       .attr('d', this.drawRectangle)
   }
 
+  createBar = () => {
+    if (!this.props.readonly && this.cursorData.visible === 'visible') {
+      const bar = {
+        uuid: uuidv4(),
+        x: this.cursorData.x,
+        y: this.cursorData.y,
+        width: unit,
+        height: unit,
+        title: '',
+        text: '',
+        type: 'roundrect',
+        grid: true,
+        rgba: this.currentColor,
+        selected: true,
+      }
+      this.setUndo([null], [bar], 'new');
+      this.onCreate(bar)
+      this.cursorData.y += unit;
+      this.updateBar();
+    }
+  }
+
+  deleteBar = () => {
+    if (!this.props.readonly) {
+      this.onKeyDown_({ keyCode: 8, });
+    }
+  }
+
   handleShortcuts = (e) => {
     if (this.focused) {
 
@@ -1171,25 +1247,7 @@ export default class ScheduleView extends Component {
       //space key
       if(e.keyCode === 32) {
         e.preventDefault();
-        if (this.cursorData.visible === 'visible') {
-          const bar = {
-            uuid: uuidv4(),
-            x: this.cursorData.x,
-            y: this.cursorData.y,
-            width: unit,
-            height: unit,
-            title: '',
-            text: '',
-            type: 'roundrect',
-            grid: true,
-            rgba: this.currentColor,
-            selected: true,
-          }
-          this.setUndo([null], [bar], 'new');
-          this.onCreate(bar)
-          this.cursorData.y += unit;
-          this.updateBar();
-        }
+        this.createBar();
       }
       //enter key 
       if(e.keyCode === 13) {
@@ -1602,6 +1660,7 @@ export default class ScheduleView extends Component {
 
 ScheduleView.defaultProps = {
   barData: [],
+  calendarData: {},
   style: {},
   position: {
     x: parseInt(((new Date()).getTime()/unitScale+unit/2)/unit)*unit,

@@ -20,6 +20,12 @@ export default function({ unit, unitScale, }) {
     unitTime: function(d=unit) {
       return new Date(d*unitScale+timeZoneOffset);
     },
+    dateStr: function(date) {
+      const d = ("00"+date.getDate()).slice(-2);
+      const y = ("00"+date.getFullYear()).slice(-4);
+      const m = ("00"+(date.getMonth()+1)).slice(-2);
+      return `${y}/${m}/${d}`
+    },
     createBar: function(day, y, options={}) {
       let title = '';
       let text = '';
@@ -48,23 +54,30 @@ export default function({ unit, unitScale, }) {
       }
     },
     toColor: function(rgba) {
-      const toHex = (v) => {
-        return ('00'+v.toString(16)).substr(-2);
+      try {
+        const toHex = (v) => {
+          return ('00'+parseInt(v).toString(16)).substr(-2);
+        }
+        return `#${toHex(rgba[0])}${toHex(rgba[1])}${toHex(rgba[2])}${toHex(rgba[3]*255)}`.toUpperCase();
+      } catch( err) {
+        return '#00FF00FF';
       }
-      return `#${toHex(rgba[0])}${toHex(rgba[1])}${toHex(rgba[2])}`.toUpperCase();
     },
     toRGBA: function(text) {
       try {
         if (text.trim().indexOf('#') === 0) {
-          const m1 = '^#([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})$';
-          const m2 = '^#([0-9,A-F])([0-9,A-F])([0-9,A-F])$';
+          const m1 = '^#([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})$';
+          const m2 = '^#([0-9,A-F])([0-9,A-F])([0-9,A-F])([0-9,A-F])$';
+          const m3 = '^#([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})$';
+          const m4 = '^#([0-9,A-F])([0-9,A-F])([0-9,A-F])$';
           const color = text.trim().toUpperCase();
-          const t = color.match(m1) || color.match(m2);
+          const t = color.match(m1) || color.match(m2) || color.match(m3) || color.match(m4);
           if (t) {
             const r = parseInt(t[1],16);
             const g = parseInt(t[2],16);
             const b = parseInt(t[3],16);
-            return [ r, g, b, 1 ];
+            const a = (t.length >= 5) ? parseInt(t[4],16)/255 : 1;
+            return [ r, g, b, a ];
           }
           return null;
         }
