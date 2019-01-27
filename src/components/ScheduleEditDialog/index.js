@@ -117,6 +117,7 @@ export default class ScheduleEditDialog extends Component {
                 value={this.state.title}
                 onChange={this.onChangeTitle}
                 readOnly={this.props.readonly?'readonly':null}
+                placeholder="バーのタイトル"
               />
             </Col>
             <Col md={3}>
