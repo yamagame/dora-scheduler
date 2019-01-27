@@ -79,11 +79,11 @@ export default function({ unit, unitScale, }) {
             const a = (t.length >= 5) ? parseInt(t[4],16)/255 : 1;
             return [ r, g, b, a ];
           }
-          return null;
+          return [ 0, 255, 0, 1 ];
         }
       } catch(err) {
       }
-      return null;
+      return [ 0, 255, 0, 1 ];
     },
     barToCSV: function(bars) {
       const today = new Date();

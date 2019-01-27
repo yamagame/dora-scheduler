@@ -14,7 +14,9 @@ import {
 } from './reducers'
 
 const store = createStore(rootReducers, initialState, applyMiddleware(thunk))
-store.dispatch(initialData());
+if (process.env.REACT_APP_MODE !== 'demo') {
+  store.dispatch(initialData());
+}
 
 ReactDOM.render(
   <Provider store={store}>

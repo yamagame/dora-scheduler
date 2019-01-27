@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import ScheduleApp from './components/ScheduleApp';
+import ScheduleDemoApp from './components/ScheduleDemoApp';
 
 class App extends Component {
   constructor(props, context) {
@@ -7,6 +8,9 @@ class App extends Component {
   }
 
   render() {
+    if (process.env.REACT_APP_MODE === 'demo') {
+      return <ScheduleDemoApp />
+    }
     return <ScheduleApp />
   }
 }

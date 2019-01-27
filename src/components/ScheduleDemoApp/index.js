@@ -1,41 +1,29 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux'
 import './index.css';
-import ScheduleView, { Utils } from '../ScheduleView';
+import ScheduleView, { Utils, } from '../ScheduleView';
 import ScheduleEditDialog from '../ScheduleEditDialog';
 import ScheduleDataDialog from '../ScheduleDataDialog';
-import {
-  setParams,
-  loadBarData,
-  createBarData,
-  saveBarData,
-  delBarData,
-  saveCalendarData,
-  loadCalendarData,
-} from '../../reducers';
+import { setParams } from '../../reducers';
 import { SketchPicker } from 'react-color';
 import {
   toColor,
   toRGBA,
 } from './utils';
 
-import io from 'socket.io-client';
-const socket = (process.env.REACT_APP_MODE !== 'demo') ? io('/bar') : {};
-
-const namespace = 'dora-counter';
 const manualURL = "https://docs.google.com/presentation/d/1QmfyJHkg_8y5yuyrvERJvfAd0OBPntpdwwdnrJailGo/edit?usp=sharing";
 
 const AsyncStorage = {
   getItem: function(key, defaultValue) {
-    const value = localStorage.getItem(`${namespace}-${key}`);
+    const value = localStorage.getItem(key);
     return (value !== null) ? JSON.parse(value).data : defaultValue;
   },
   setItem: function(key, value) {
-    localStorage.setItem(`${namespace}-${key}`, JSON.stringify({ data: value }));
+    localStorage.setItem(key, JSON.stringify({ data: value }));
   },
 }
 
-class App extends Component {
+class ScheduleApp extends Component {
   constructor(props, context) {
     super(props, context);
     const now = Utils.dayPosition((new Date()).getTime());
@@ -43,6 +31,7 @@ class App extends Component {
       width: window.innerWidth,
       height: window.innerHeight,
       barData: [
+        ...AsyncStorage.getItem('barData', []),
       ].filter( v => v !== null ),
       position: AsyncStorage.getItem('position', {
         x: now,
@@ -76,52 +65,12 @@ class App extends Component {
     });
   }
 
-  onUpdateSchedule = (params) => {
-    this.props.loadBarData(params);
-  }
-
-  onMoveCenter = (payload) => {
-    const { uuid } = payload;
-    this.props.loadBarData({ bars: [{ uuid }] }, barData => {
-      barData.some( bar => {
-        if (bar.uuid === uuid) {
-          this.scheduleView.moveToCenter(bar);
-        }
-      })
-    });
-  }
-
-  onMoveDay = (payload) => {
-    const d = new Date(payload.time);
-    this.scheduleView.moveToDay(d);
-  }
-
   componentDidMount() {
     window.addEventListener('resize', this.onResize, false);
-    this.props.loadBarData();
-    this.props.loadCalendarData((err, calendarData) => {
-      this.setState({
-        calendarData,
-      })
-    })
-    socket.on('update-schedule', this.onUpdateSchedule);
-    socket.on('move-to-center', this.onMoveCenter);
-    socket.on('move-to-day', this.onMoveDay);
   }
 
   componentWillUnmount() {
     window.removeEventListener('resize', this.onResize);
-    socket.removeListener('update-schedule', this.onUpdateSchedule);
-    socket.removeListener('move-to-center', this.onMoveCenter);
-    socket.removeListener('move-to-day', this.onMoveDay);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (this.props.barData !== nextProps.barData) {
-      this.setState({
-        barData: nextProps.barData,
-      })
-    }
   }
 
   onEdit = (d) => {
@@ -131,32 +80,12 @@ class App extends Component {
     })
   }
 
-  saveBarData = (barData) => {
-    const bars = barData.map( v => {
+  saveBarData = () => {
+    AsyncStorage.setItem('barData', this.state.barData.map( v => {
       const t = { ...v }
       delete t.selected;
       return t;
-    })
-    this.props.saveBarData(bars);
-    // AsyncStorage.setItem('barData', this.state.barData.map( v => {
-    //   const t = { ...v }
-    //   delete t.selected;
-    //   return t;
-    // }));
-  }
-
-  createBarData = (barData) => {
-    const bars = barData.map( v => {
-      const t = { ...v }
-      delete t.selected;
-      return t;
-    })
-    this.props.createBarData(bars);
-    // AsyncStorage.setItem('barData', this.state.barData.map( v => {
-    //   const t = { ...v }
-    //   delete t.selected;
-    //   return t;
-    // }));
+    }));
   }
 
   onCreate = (d) => {
@@ -166,22 +95,51 @@ class App extends Component {
     barData.push(d);
     this.setState({
       barData,
-    }, () => this.createBarData([d]))
+    }, this.saveBarData)
   }
 
   onChange = (event) => {
     if ('bars' in event) {
       this.setState({
         barData: this.state.barData,
-      }, () => {
-        this.saveBarData(event.bars)
-      })
+      }, this.saveBarData)
+    }
+    if ('newBarData' in event) {
+      this.setState({
+        barData: [ ...event.newBarData ],
+      }, this.saveBarData)
     }
     if ('position' in event) {
       AsyncStorage.setItem('position', event.position);
     }
     if ('scale' in event) {
       AsyncStorage.setItem('scale', event.scale);
+    }
+  }
+
+  onKeyDown = (event) => {
+    if(event.keyCode == 13) {
+      if (event.shiftKey) {
+        this.scheduleView.removeLine();
+      } else {
+        this.scheduleView.insertLine();
+      }
+    }
+    if(event.keyCode == 8 || event.keyCode == 46) {
+      const delBars = this.scheduleView.removeSelectedBar();
+      if (delBars.length > 0) {
+        const b = {};
+        this.state.barData.forEach( d => {
+          b[d.uuid] = d;
+        })
+        delBars.forEach( d => {
+          delete b[d.uuid];
+        })
+        const barData = Object.keys(b).map( uuid => b[uuid] );
+        this.setState({
+          barData,
+        }, () => this.saveBarData())
+      }
     }
   }
 
@@ -192,10 +150,12 @@ class App extends Component {
   }
 
   onEdited = (bar) => {
+    const barData = [ ...this.state.barData ];
     const d = this.scheduleView.setBar(bar);
     this.setState({
       showEditDialog: false,
-    }, () => this.saveBarData([ d ]));
+      barData,
+    }, () => this.saveBarData());
   }
 
   onSelect = () => {
@@ -219,52 +179,23 @@ class App extends Component {
     })
   }
 
-  onKeyDown = (event) => {
-    if(event.keyCode === 13) {
-      if (event.shiftKey) {
-        this.scheduleView.removeLine();
-      } else {
-        this.scheduleView.insertLine();
-      }
-    }
-    if(event.keyCode === 8 || event.keyCode === 46) {
-      const delBars = this.scheduleView.removeSelectedBar();
-      if (delBars.length > 0) {
-        const b = {};
-        this.state.barData.forEach( d => {
-          b[d.uuid] = d;
-        })
-        delBars.forEach( d => {
-          delete b[d.uuid];
-        })
-        this.props.delBarData(delBars, () => {
-          const barData = Object.keys(b).map( uuid => b[uuid] );
-          this.props.setParams({ barData }, () => {
-            this.setState({
-              barData,
-            }, () => {
-              //console.log(this.state.barData);
-            })
-          })
-        });
-      }
-    }
-  }
-
   handleChangeColor = (color) => {
     this.setState({
       color: color.rgb,
     }, () => {
       const col = this.state.color;
       AsyncStorage.setItem('color', col);
-      const bars = this.state.barData.filter( bar => bar.selected );
+      const barData = [ ...this.state.barData ];
+      const bars = barData.filter( bar => bar.selected );
       bars.forEach( bar => {
         if (bar.selected) {
           bar.rgba = [ col.r, col.g, col.b, col.a ];
         }
       })
-      this.saveBarData(bars)
-      this.scheduleView.updateBarSelectState();
+      this.setState({
+        showEditDialog: false,
+        barData,
+      }, () => this.saveBarData());
     })
   }
 
@@ -273,7 +204,6 @@ class App extends Component {
       showColorPickerDialog: true,
     })
   }
-
 
   openScheduleDataDialog = () => {
     const selectedBars = this.state.barData.filter( v => v.selected );
@@ -302,7 +232,6 @@ class App extends Component {
   onEditedScheduleData = (scheduleData) => {
     const barData =  [ ...this.state.barData ];
     const cursor = this.scheduleView.cursorRectangles();
-    const bars = [];
     try {
       const data = JSON.parse(scheduleData);
       const a = {}
@@ -316,13 +245,11 @@ class App extends Component {
           Object.keys(v).forEach( k => {
             a[v.uuid][k] = v[k];
           })
-          bars.push(a[v.uuid]);
         } else {
           if (cursor.visible === 'visible') {
             v.y += cursor.y;
           }
           v.selected = true;
-          bars.push(v);
           barData.push(v);
         }
       })
@@ -331,12 +258,11 @@ class App extends Component {
     this.setState({
       showScheduleDataDialog: false,
       barData,
-    }, () => this.createBarData(bars))
+    }, () => this.saveBarData())
   }
 
   onEditCalendar = (calendarData) => {
     AsyncStorage.setItem('calendarData', calendarData);
-    if (this.props.saveCalendarData) this.props.saveCalendarData(calendarData)
   }
 
   onCreateBar = () => {
@@ -450,7 +376,6 @@ class App extends Component {
             onEditCalendar={this.onEditCalendar}
             barData={this.state.barData}
             calendarData={this.state.calendarData}
-            // readonly
           />
         </div>
         <ScheduleEditDialog
@@ -487,21 +412,10 @@ class App extends Component {
   }
 }
 
-App.defaultProps = {
-  barData: [],
-}
-
 export default connect(
   state => ( {
-    barData: state.app.barData,
   }),
   dispatch => ( {
     setParams: (payload) => dispatch( setParams(payload) ),
-    loadBarData: (params, callback) => dispatch( loadBarData(params, callback) ),
-    createBarData: (bars, callback) => dispatch( createBarData(bars, callback) ),
-    saveBarData: (bars, callback) => dispatch( saveBarData(bars, callback) ),
-    delBarData: (bars, callback) => dispatch( delBarData(bars, callback) ),
-    saveCalendarData: (calendarData, callback) => dispatch( saveCalendarData(calendarData, callback) ),
-    loadCalendarData: (callback) => dispatch( loadCalendarData(callback) ),
   })
-)(App);
+)(ScheduleApp);

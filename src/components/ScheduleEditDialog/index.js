@@ -12,21 +12,24 @@ import 'brace/theme/chrome';
 const toRGBA = function(text) {
   try {
     if (text.trim().indexOf('#') === 0) {
-      const m1 = '^#([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})$';
-      const m2 = '^#([0-9,A-F])([0-9,A-F])([0-9,A-F])$';
+      const m1 = '^#([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})$';
+      const m2 = '^#([0-9,A-F])([0-9,A-F])([0-9,A-F])([0-9,A-F])$';
+      const m3 = '^#([0-9,A-F]{2})([0-9,A-F]{2})([0-9,A-F]{2})$';
+      const m4 = '^#([0-9,A-F])([0-9,A-F])([0-9,A-F])$';
       const color = text.trim().toUpperCase();
-      const t = color.match(m1) || color.match(m2);
+      const t = color.match(m1) || color.match(m2) || color.match(m3) || color.match(m4);
       if (t) {
         const r = parseInt(t[1],16);
         const g = parseInt(t[2],16);
         const b = parseInt(t[3],16);
-        return [ r, g, b, 1 ];
+        const a = (t.length >= 5) ? parseInt(t[4],16)/255 : 1;
+        return [ r, g, b, a ];
       }
-      return null;
+      return [ 0, 255, 0, 1 ];
     }
   } catch(err) {
   }
-  return null;
+  return [ 0, 255, 0, 1 ];
 }
 
 export default class ScheduleEditDialog extends Component {

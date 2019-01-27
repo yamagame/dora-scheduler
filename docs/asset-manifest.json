@@ -1,0 +1,9 @@
+{
+  "main.css": "/dora-scheduler/static/css/main-scheduler.3982fa96.css",
+  "main.js": "/dora-scheduler/static/js/main-scheduler.f63ddbac.js",
+  "main.js.map": "/dora-scheduler/static/js/main-scheduler.f63ddbac.js.map",
+  "static/css/main-scheduler.3982fa96.css.map": "/dora-scheduler/static/css/main-scheduler.3982fa96.css.map",
+  "index.html": "/dora-scheduler/index.html",
+  "precache-manifest.6c8eaee2dfa0429ce8ee798d0ffcc965.js": "/dora-scheduler/precache-manifest.6c8eaee2dfa0429ce8ee798d0ffcc965.js",
+  "service-worker.js": "/dora-scheduler/service-worker.js"
+}

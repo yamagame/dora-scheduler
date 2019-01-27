@@ -25,9 +25,9 @@ export const toRGBA = function(text) {
         const a = (t.length >= 5) ? parseInt(t[4],16)/255 : 1;
         return [ r, g, b, a ];
       }
-      return [ 0, 255, 0, 1 ];
+      return null;
     }
   } catch(err) {
   }
-  return [ 0, 255, 0, 1 ];
+  return null;
 }
