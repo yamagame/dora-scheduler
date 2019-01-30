@@ -1,8 +1,16 @@
 # Dora Scheduler
 
+自由にバーを配置できるスケジュール管理アプリです。
 
-## 機能
+<p align="center">
+  <img width="65%" style="border: solid 1px lightgray;" src="./image/screenshot.png"/>
+</p>
 
+## デモアプリ
+
+以下のページでデモアプリを試用できます。
+
+[https://yamagame.github.io/dora-scheduler](https://yamagame.github.io/dora-scheduler)
 
 ## 準備
 
