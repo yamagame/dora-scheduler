@@ -5,8 +5,9 @@ import utils from './utils';
 import cloneDeep from 'clone-deep';
 
 export const unit = 24;
-export const unitScale = 60*60*1000;
+export const unitScale = (24*60*60*1000/unit);
 export const Utils = utils({ unit, unitScale });
+export const fontSize = 16;
 
 function roundRect(x, y, width, height) {
   const r = height / 2;
@@ -38,14 +39,32 @@ function gridFitY(self, x) {
 function calcBarTitleXPostion(bar, self, d, width) {
   const bbox = bar.getBBox();
   let dx = 0;
-  if (self.xScale(d.x+d.width)+bbox.width > width) {
-    dx = width-(self.xScale(d.x+d.width)+bbox.width);
+  if (!d.titlePos) d.titlePos = { x:0, y:0 }
+  if (self.xScale(d.x+d.width)+bbox.width+32*d.titlePos.x > width && d.titlePos.x >= 0) {
+    dx = width-(self.xScale(d.x+d.width)+bbox.width+32*d.titlePos.x);
   }
-  return self.xScale(d.x+d.width)+dx/2;
+  if (self.xScale(d.x)-bbox.width+32*d.titlePos.x < 0 && d.titlePos.x <= 0) {
+    dx = -(self.xScale(d.x)-bbox.width+32*d.titlePos.x);
+  }
+  if (d.titlePos.x < 0) {
+    return self.xScale(d.x-self.handleDX())-bbox.width+dx/2-2;
+  }
+  if (d.titlePos.x == 0) {
+    return self.xScale(d.x+d.width/2)-bbox.width/2+dx/2;
+  }
+  return self.xScale(d.x+d.width+self.handleDX())+dx/2+2;
 }
 
-function calcBarTitleYPostion(bar, self, d, width) {
+function calcBarTitleYPostion(bar, self, d, height) {
+  const bbox = bar.getBBox();
   const { unit } = self.props;
+  if (!d.titlePos) d.titlePos = { x:0, y:0 }
+  if (d.titlePos.y < 0) {
+    return self.yScale(Math.floor((d.y+unit/2)/unit)*unit+unit/2+unit/4)-bbox.height;
+  }
+  if (d.titlePos.y > 0) {
+    return self.yScale(Math.floor((d.y+unit/2)/unit)*unit+unit/2+unit/4)+bbox.height;
+  }
   return self.yScale(Math.floor((d.y+unit/2)/unit)*unit+unit/2+unit/4);
 }
 
@@ -81,10 +100,13 @@ export default class ScheduleView extends Component {
     this.focusDelayTimer = null;
     this.undoPtr = 0;
     this.undoBuffer = [];
+    this.zoomYPos = null;
+    this.zoomXScale = null;
+    this.noMoveY = false;
   }
 
   componentWillMount() {
-    this.focused = false;
+    // this.focused = false;
   }
 
   componentDidMount() {
@@ -94,7 +116,7 @@ export default class ScheduleView extends Component {
     const height = this.container.clientHeight;
     this.clientWidth = width;
     this.clientHeight = height;
-    const svg = d3.select(this.svg);
+    const svg = this.svg;
 
     this.xScale = d3.scaleLinear()
       .domain([0, 0+width])
@@ -106,7 +128,7 @@ export default class ScheduleView extends Component {
     this.dragLeftHandle = d3.drag()
       .on('start', function(d, i) {
         var rect = d3.select(this)
-        const bar = d3.select(self.bar);
+        const bar = self.bar;
 
         const selectedBar = cloneDeep(d)
 
@@ -164,7 +186,7 @@ export default class ScheduleView extends Component {
     this.dragRightHandle = d3.drag()
       .on('start', function(d, i) {
         var rect = d3.select(this)
-        const bar = d3.select(self.bar);
+        const bar = self.bar;
 
         const selectedBar = cloneDeep(d)
 
@@ -215,7 +237,7 @@ export default class ScheduleView extends Component {
     this.dragBar = d3.drag()
       .on('start', function(d, i) {
         var rect = d3.select(this)
-        const bar = d3.select(self.bar);
+        const bar = self.bar;
 
         if (!d.selected && !self.shiftKey) {
           bar.selectAll('.selected')
@@ -282,8 +304,8 @@ export default class ScheduleView extends Component {
 
     this.dragMarky = d3.drag()
       .on('start', function(d, i) {
-        const marky = d3.select(self.marky);
-        const bar = d3.select(self.bar);
+        const marky = self.marky;
+        const bar = self.bar;
         let doDrag = false;
         let x = d3.event.x;
         let y = d3.event.y;
@@ -347,15 +369,17 @@ export default class ScheduleView extends Component {
 
     let zoomMoved = 0;
     let zoomScale = null;
+    let zoomYPos = null;
 
     this.zoomBehavior = d3.zoom()
-      .scaleExtent([1 / 30, 3000])
+      .scaleExtent([0.1, 1])
       .filter(() => {
         return !self.shiftKey;
       })
       .on('start', function() {
         zoomMoved = 0;
         zoomScale = d3.event.transform.k;
+        zoomYPos = d3.event.transform.y;
       })
       .on('zoom', () => {
         zoomMoved ++;
@@ -363,15 +387,20 @@ export default class ScheduleView extends Component {
           zoomMoved += 10;
         }
         const transform = d3.event.transform;
-        transform.rescaleX(this.xScale);
         this.xScale.range([transform.applyX(0), transform.applyX(this.clientWidth)]);
-        this.yScale.range([transform.applyY(0), transform.applyY(this.clientHeight)]);
+        if (zoomScale === transform.k && self.noMoveY != true) {
+          this.zoomYPos += d3.event.transform.y - zoomYPos;
+          zoomYPos = d3.event.transform.y;
+        }
+        self.noMoveY = false;
+        this.yScale.range([this.zoomYPos, this.zoomYPos+this.clientHeight]);
         this.updateGridRectangles();
         this.updateGrid();
         this.updateCalendarRectangles();
         this.updateCalendar();
-        const bar = d3.select(this.bar);
-        const text = d3.select(this.text);
+        const bar = this.bar;
+        const text = this.text;
+        this.zoomXScale = this.xScale(1)-this.xScale(0);
         bar.selectAll('path.body')
           .attr('d', this.drawRectangle)
         bar.selectAll('path.left')
@@ -385,20 +414,20 @@ export default class ScheduleView extends Component {
           .attr('y', function(d) {
             return calcBarTitleYPostion(this, self, d, self.container.clientWidth);
           })
-          .attr('font-size', this.xScale(16)-this.xScale(0))
+          .attr('font-size', fontSize)
         this.redrawCursor();
         this.onChange({
           position: {
             x: -transform.x/transform.k,
-            y: -transform.y/transform.k+unit*3,
+            y: this.zoomYPos,
           },
           scale: transform.k,
         })
       })
       .on('end', function() {
         if (zoomMoved < 5) {
-          const bar = d3.select(self.bar);
-          if (d3.event.sourceEvent && self.focused && self.focusDelayTimer == null) {
+          const bar = self.bar;
+          if (d3.event.sourceEvent /*&& self.focused*/ && self.focusDelayTimer == null) {
             var coords = d3.mouse(this);
             if (!self.props.readonly) {
               if (coords[1] > self.yScale(unit*3)-self.yScale(0) && self.selectedBar.length === 0) {
@@ -427,10 +456,11 @@ export default class ScheduleView extends Component {
 
     this.zoomBehavior
       .scaleTo(svg, this.props.scale);
+    this.noMoveY = true;
+    this.zoomYPos = this.props.position.y;
     this.zoomBehavior
       .translateTo(svg,
-        this.props.position.x+this.xScale.invert(this.clientWidth/2)-this.xScale.invert(0),
-        this.props.position.y+this.yScale.invert(this.clientHeight/2)-this.yScale.invert(0)-unit*3,
+        this.props.position.x+this.xScale.invert(this.clientWidth/2)-this.xScale.invert(0),0,
       )
 
     this.updateGridRectangles();
@@ -440,9 +470,11 @@ export default class ScheduleView extends Component {
     this.updateBar();
     this.updateMarky();
     this.updateCursor();
-    window.addEventListener('keydown', this.handleShortcuts);
+    this.updateBarSelectState();
     document.addEventListener('copy', this.handleCopy);
     document.addEventListener('paste', this.handlePaste);
+    document.addEventListener('keydown', this.handleShortcuts)
+    document.addEventListener('keyup', this.onKeyUp)
   }
 
   componentDidUpdate() {
@@ -453,8 +485,8 @@ export default class ScheduleView extends Component {
     this.updateCalendarRectangles();
     this.updateCalendar();
     this.redrawCursor();
-    const bar = d3.select(this.bar);
-    const text = d3.select(this.text);
+    const bar = this.bar;
+    const text = this.text;
     bar.selectAll('path.body')
       .attr('d', this.drawRectangle)
     bar.selectAll('path.left')
@@ -468,13 +500,14 @@ export default class ScheduleView extends Component {
       .attr('y', function(d) {
         return calcBarTitleYPostion(this, self, d, width);
       })
-      .attr('font-size', this.xScale(16)-this.xScale(0))
+      .attr('font-size', fontSize)
   }
 
   componentWillUnmount() {
-    window.removeEventListener('keydown', this.handleShortcuts);
     document.removeEventListener('copy', this.handleCopy);
     document.removeEventListener('paste', this.handlePaste);
+    document.removeEventListener('keydown', this.handleShortcuts)
+    document.removeEventListener('keyup', this.onKeyUp)
   }
 
   componentWillReceiveProps(nextProps) {
@@ -554,12 +587,19 @@ export default class ScheduleView extends Component {
     }
   }
 
+  handleDX = () => {
+    if (this.zoomXScale < 1) {
+      return (unit/this.zoomXScale - unit)/2;
+    }
+    return 0;
+  }
+
   drawLeftHandle = (d) => {
     const unit = this.props.unit;
     return this.drawRectangle({
-      x: d.x,
+      x: d.x-this.handleDX(),
       y: d.y,
-      width: unit/4,
+      width: (unit/4)/(this.zoomXScale < 1 ? this.zoomXScale : 1),
       height: unit,
       type: 'rect',
     })
@@ -568,9 +608,9 @@ export default class ScheduleView extends Component {
   drawRightHandle = (d) => {
     const unit = this.props.unit;
     return this.drawRectangle({
-      x: d.x+d.width-unit/4,
+      x: d.x+d.width-unit/4+this.handleDX(),
       y: d.y,
-      width: unit/4,
+      width: (unit/4)/(this.zoomXScale < 1 ? this.zoomXScale : 1),
       height: unit,
       type: 'rect',
     })
@@ -623,7 +663,7 @@ export default class ScheduleView extends Component {
     this.calendarData = [];
     const r1 = this.xScale.invert(0);
     const x1 = Math.floor(this.xScale.invert(0)/unit)*unit;
-    const x2 = this.xScale.invert(this.container.clientWidth)-+Utils.timeZoneOffset;
+    const x2 = this.xScale.invert(this.container.clientWidth)-Utils.timeZoneOffset;
     const years = {};
     const month = {};
     const unitTime = unit*unitScale;
@@ -639,11 +679,13 @@ export default class ScheduleView extends Component {
       } else {
         years[date.getFullYear()].end = endTime;
       }
-      if (!month[date.getMonth()]) {
-        month[date.getMonth()] = { start: startTime, end: endTime  };
+      const monthKey = `${date.getFullYear()}/${date.getMonth()+1}`;
+      if (!month[monthKey]) {
+        month[monthKey] = { start: startTime, end: endTime  };
       } else {
-        month[date.getMonth()].end = endTime;
+        month[monthKey].end = endTime;
       }
+      month[monthKey].month = date.getMonth()+1;
       let color = "#FFFFFFFF";
       if (day === 0) {
         color = "#FFDCDCFF";
@@ -664,6 +706,7 @@ export default class ScheduleView extends Component {
         height: unit,
         color,
         type: 'calendar',
+        dateType: 'day',
         text: date.getDate(),
         time: date,
       })
@@ -672,7 +715,7 @@ export default class ScheduleView extends Component {
     //年
     Object.keys(years).map(v => parseInt(v)).sort().forEach( (k, i) => {
       const v = years[k];
-      const color = "rgba(255,255,255,255)";
+      const color = "rgba(250,250,250,255)";
       this.calendarData.push({
         x: Math.max(v.start/unitScale+Utils.timeZoneOffset, r1),
         y: 0,
@@ -680,29 +723,33 @@ export default class ScheduleView extends Component {
         height: unit,
         color,
         type: 'calendar',
+        dateType: 'year',
         text: k,
       })
     })
 
     //月
-    Object.keys(month).map(v => parseInt(v)).sort().forEach( (k, i) => {
+    Object.keys(month).sort().forEach( (k, i) => {
       const v = month[k];
-      const date = new Date(v.start);
-      let color;
-      if ((date.getMonth() % 2) === 0) {
-        color = "rgba(235,235,235,255)";
-      } else {
-        color = "rgba(225,225,225,255)";
+      if (v) {
+        const date = new Date(v.start);
+        let color;
+        if ((date.getMonth() % 2) === 0) {
+          color = "rgba(235,235,235,255)";
+        } else {
+          color = "rgba(225,225,225,255)";
+        }
+        this.calendarData.push({
+          x: Math.max(v.start/unitScale+Utils.timeZoneOffset, r1),
+          y: unit,
+          width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)),
+          height: unit,
+          color,
+          type: 'calendar',
+          dateType: 'month',
+          text: v.month,
+        })
       }
-      this.calendarData.push({
-        x: Math.max(v.start/unitScale, r1)+Utils.timeZoneOffset,
-        y: unit,
-        width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)),
-        height: unit,
-        color,
-        type: 'calendar',
-        text: k+1,
-      })
     })
   }
 
@@ -725,7 +772,7 @@ export default class ScheduleView extends Component {
   todayRectangles = () => {
     const { unit, unitScale } = this.props;
     const today = new Date();
-    const x = parseInt((today.getTime()/unitScale+unit/2)/unit)*unit;
+    const x = parseInt(today.getTime()/(24*60*60*1000))*unit;
     return [
       { x: x+Utils.timeZoneOffset, y: unit*2, height: unit, width: unit, color: 'rgba(0,255,0,0.6)', type: 'calendar-circle', }
     ]
@@ -743,7 +790,7 @@ export default class ScheduleView extends Component {
   }
 
   updateGrid = () => {
-    const grid = d3.select(this.grid);
+    const grid = this.grid;
     grid
       .selectAll('path')
       .remove();
@@ -762,7 +809,7 @@ export default class ScheduleView extends Component {
 
   updateCalendar = () => {
     const { unit, } = this.props;
-    const calendar = d3.select(this.calendar);
+    const calendar = this.calendar;
     calendar
       .selectAll('path')
       .remove();
@@ -838,18 +885,37 @@ export default class ScheduleView extends Component {
       .style("pointer-events", "none")
       .attr('d', this.drawRectangle);
 
+    const _fontScaleX = (v) => {
+      const q = this.xScale(v)-this.xScale(0);
+      return q;
+    }
+    const fontScaleX = (d) => {
+      return d.dateType === 'day' ? (_fontScaleX(1) >= 1 ? 1 : _fontScaleX(1)) : 1;
+    }
+    const faceFont = (d) => {
+      const s = _fontScaleX(1);
+      if (s <= 0.8) {
+        if (s < 0.2) return 0;
+        return ((s-0.2)/0.6)*0.8;
+      }
+      return 0.8;
+    }
+
     calendar
       .selectAll('text')
       .data(this.calendarRectangles())
       .enter()
       .append('text')
-      .attr('x', d => this.xScale(d.x+d.width/2))
+      .attr('x', d => this.xScale(d.x+d.width/2)/fontScaleX(d))
       .attr('y', d => this.yScale(d.y+unit*3/4)-this.yScale(0))
       .text(d => d.text)
-      .attr("text-anchor", "middle")
-      .attr("vertical-align", "middle")
-      .attr('font-size', this.xScale(16)-this.xScale(0))
-      .attr("fill", "black")
+      .attr('text-anchor', 'middle')
+      .attr('vertical-align', 'middle')
+      .attr('font-size', fontSize)
+      .attr('transform', d => `scale(${fontScaleX(d)},1)`)
+      .attr('fill', 'black')
+      .attr('fill-opacity' , d => d.dateType === 'day' ? faceFont(d) : 0.8)
+      .attr('visibility', 'visible')
       .style('pointer-events', 'none')
 
     calendar
@@ -900,8 +966,8 @@ export default class ScheduleView extends Component {
 
   updateBar = () => {
     const self = this;
-    const bar = d3.select(this.bar);
-    const text = d3.select(this.text);
+    const bar = this.bar;
+    const text = this.text;
     self.selectedBar = [];
 
     bar.selectAll('g')
@@ -968,6 +1034,9 @@ export default class ScheduleView extends Component {
         self.onEdit(d, i);
       })
 
+    this.zoomXScale = this.xScale(1)-this.xScale(0);
+    console.log(`this.zoomXScale ${this.zoomXScale}`);
+
     g.append('g')
       .append('path')
       .classed('left', true)
@@ -991,22 +1060,22 @@ export default class ScheduleView extends Component {
       .on('dblclick',function(d, i){
         self.onEdit(d, i);
       })
-
+    
     g2.append('g')
       .append('text')
       .classed('title', true)
+      .attr('font-size', fontSize)
+      .style('pointer-events', 'none')
+      .style('zIndex', 10)
+      .text(d => d.title)
+      .attr("text-anchor", "start")
+      .attr("alignment-baseline", "auto")
       .attr('x', function(d) {
         return calcBarTitleXPostion(this, self, d, self.container.clientWidth);
       })
       .attr('y', function(d) {
         return calcBarTitleYPostion(this, self, d, self.container.clientWidth);
       })
-      .attr('font-size', this.xScale(16)-this.xScale(0))
-      .style('pointer-events', 'none')
-      .style('zIndex', 10)
-      .text(d => d.title)
-      .attr("text-anchor", "start")
-      .attr("alignment-baseline", "auto")
 
     //g.exit().remove()
 
@@ -1015,9 +1084,13 @@ export default class ScheduleView extends Component {
 
   updateBarSelectState = (redraw=true) => {
     const self = this;
-    const bar = d3.select(this.bar);
-    const text = d3.select(this.text);
+    const bar = this.bar;
+    const text = this.text;
     self.selectedBar = [];
+
+    this.zoomXScale = this.xScale(1)-this.xScale(0);
+    console.log(`this.zoomXScale ${this.zoomXScale}`);
+
     bar
       .selectAll('path.body')
       .each((d,i) => {
@@ -1056,7 +1129,7 @@ export default class ScheduleView extends Component {
   }
 
   updateMarky = () => {
-    const marky = d3.select(this.marky);
+    const marky = this.marky;
     marky
       .selectAll('path')
       .data([this.markyRectangles()])
@@ -1100,7 +1173,7 @@ export default class ScheduleView extends Component {
   }
 
   updateCursor = () => {
-    const cursor = d3.select(this.cursor);
+    const cursor = this.cursor;
     cursor
       .selectAll('path.cursor')
       .data([this.cursorRectangles()])
@@ -1140,7 +1213,7 @@ export default class ScheduleView extends Component {
   }
 
   redrawCursor = () => {
-    const cursor = d3.select(this.cursor);
+    const cursor = this.cursor;
     cursor.selectAll('path.cursor')
       .data([this.cursorRectangles()])
       .attr('visibility', d => this.cursorData.visible)
@@ -1169,6 +1242,7 @@ export default class ScheduleView extends Component {
         grid: true,
         rgba: this.currentColor,
         selected: true,
+        titlePos: { x:0, y: 0 },
       }
       this.setUndo([null], [bar], 'new');
       this.onCreate(bar)
@@ -1184,7 +1258,9 @@ export default class ScheduleView extends Component {
   }
 
   handleShortcuts = (e) => {
-    if (this.focused) {
+    this.shiftKey = e.shiftKey;
+    //if (this.focused) 
+    {
 
       const move = (x, y) => {
         if (!this.props.readonly) {
@@ -1193,6 +1269,27 @@ export default class ScheduleView extends Component {
               v.d.x += x;
             }
             v.d.y += y;
+          })
+          this.updateBarData(this.selectedBar);
+          this.updateBarSelectState();
+        }
+      }
+
+      const textPosition = (x, y) => {
+        if (!this.props.readonly) {
+          this.selectedBar.forEach( v => {
+            if (!readOnly(v.d)) {
+              if (!v.d.titlePos || typeof(v.d.titlePos) !== 'object') v.d.titlePos = { x:0, y: 0 };
+              function limit(v) {
+                if (v < -1) v = -1;
+                if (v >  1) v =  1;
+                return v;
+              }
+              v.d.titlePos.x += x;
+              v.d.titlePos.x = limit(v.d.titlePos.x);
+              v.d.titlePos.y += y;
+              v.d.titlePos.y = limit(v.d.titlePos.y);
+            }
           })
           this.updateBarData(this.selectedBar);
           this.updateBarSelectState();
@@ -1259,22 +1356,38 @@ export default class ScheduleView extends Component {
       //up key 
       if(e.keyCode === 38) {
         e.preventDefault();
-        move(0, -unit);
+        if (e.shiftKey) {
+          textPosition(0, -1);
+        } else {
+          move(0, -unit);
+        }
       }
       //down key 
       if(e.keyCode === 40) {
         e.preventDefault();
-        move(0, unit);
+        if (e.shiftKey) {
+          textPosition(0, 1);
+        } else {
+          move(0, unit);
+        }
       }
       //left key 
       if(e.keyCode === 37) {
         e.preventDefault();
-        move(-unit, 0);
+        if (e.shiftKey) {
+          textPosition(-1, 0);
+        } else {
+          move(-unit, 0);
+        }
       }
       //right key 
       if(e.keyCode === 39) {
         e.preventDefault();
-        move(unit, 0);
+        if (e.shiftKey) {
+          textPosition(1, 0);
+        } else {
+          move(unit, 0);
+        }
       }
       //delete key
       if(e.keyCode === 8 || e.keyCode === 46) {
@@ -1298,7 +1411,7 @@ export default class ScheduleView extends Component {
             b.y += unit;
           })
           this.setUndo([null], newBars, 'new');
-          const bar = d3.select(this.bar);
+          const bar = this.bar;
           bar.selectAll('path').classed('selected', false).each(d => d.selected = false);
           newBars.forEach( b => {
             this.onCreate(b)
@@ -1386,7 +1499,7 @@ export default class ScheduleView extends Component {
   }
 
   onFocus = (event) => {
-    this.focused = true;
+    // this.focused = true;
     if (this.focusDelayTimer) clearTimeout(this.focusDelayTimer);
     this.focusDelayTimer = setTimeout(() => {
       this.focusDelayTimer = null;
@@ -1394,7 +1507,7 @@ export default class ScheduleView extends Component {
   }
 
   onBlur = (event) => {
-    this.focused = false;
+    // this.focused = false;
   }
 
   onKeyDown = (event) => {
@@ -1428,34 +1541,39 @@ export default class ScheduleView extends Component {
 
   onMouseLeave = (event) => {
     if (this.shiftKey) {
-      this.marky.width = 0;
-      this.marky.height = 0;
+      this.marky.node().width = 0;
+      this.marky.node().height = 0;
     }
   }
 
   moveToDay(date) {
     const time = date.getTime();
     // const width = this.clientWidth;
-    const height = this.clientHeight;
+    const height = this.container.clientHeight;
     // const ox = this.xScale.invert(0);
     const oy = this.yScale.invert(0);
     // const ow = this.xScale.invert(width)-ox;
     const oh = this.yScale.invert(height)-oy;
     const x = Utils.timePosition(time);
-    const svg = d3.select(this.svg);
-    this.zoomBehavior.translateTo(svg, x, oy+oh/2);
+    const svg = this.svg;
+    this.noMoveY = true;
+    this.zoomBehavior.translateTo(svg, x, 0);
+    // this.zoomBehavior.translateTo(svg, x, oy+oh/2);
   }
 
   moveToCenter(bar) {
     const d = bar;
+    const height = this.container.clientHeight;
     // const width = this.clientWidth;
     // const height = this.clientHeight;
     // const ox = this.xScale.invert(0);
     // const oy = this.yScale.invert(0);
     // const ow = this.xScale.invert(width)-ox;
     // const oh = this.yScale.invert(height)-oy;
-    const svg = d3.select(this.svg);
-    this.zoomBehavior.translateTo(svg, d.x+d.width/2, d.y+d.height/2-unit);
+    const svg = this.svg;
+    this.noMoveY = true;
+    this.zoomYPos = height/2-d.y+unit;
+    this.zoomBehavior.translateTo(svg, d.x+d.width/2, 0);
   }
 
   removeSelectedBar() {
@@ -1615,22 +1733,22 @@ export default class ScheduleView extends Component {
           width: this.props.style.width+2,
           border: 'solid 1px lightgray',
         }}
-        tabIndex={0}
-        focusable={true}
-        onFocus={this.onFocus}
-        onBlur={this.onBlur}
-        onKeyDown={this.onKeyDown}
-        onKeyPress={this.onKeyPress}
-        onKeyUp={this.onKeyUp}
-        onMouseMove={this.onMouseMove}
-        onMouseOut={this.onMouseOut}
-        onMouseOver={this.onMouseOver}
-        onMouseUp={this.onMouseUp}
-        onMouseEnter={this.onMouseEnter}
-        onMouseLeave={this.onMouseLeave}
+        // tabIndex={0}
+        // focusable={true}
+        // onFocus={this.onFocus}
+        // onBlur={this.onBlur}
+        // onKeyDown={this.onKeyDown}
+        // onKeyPress={this.onKeyPress}
+        // onKeyUp={this.onKeyUp}
+        // onMouseMove={this.onMouseMove}
+        // onMouseOut={this.onMouseOut}
+        // onMouseOver={this.onMouseOver}
+        // onMouseUp={this.onMouseUp}
+        // onMouseEnter={this.onMouseEnter}
+        // onMouseLeave={this.onMouseLeave}
       >
         <svg
-          ref={n => this.svg = n}
+          ref={n => this.svg = d3.select(n)}
           style={{
             ...this.props.style,
           }}
@@ -1645,12 +1763,13 @@ export default class ScheduleView extends Component {
               height={"100%"}
               style={{ fill: "rgba(220,255,255,0.4)" }}
             />
-            <g ref={n => this.grid = n} />
-            <g ref={n => this.cursor = n} />
-            <g ref={n => this.bar = n} />
-            <g ref={n => this.text = n} />
-            <g ref={n => this.marky = n} />
-            <g ref={n => this.calendar = n} />
+            <g ref={n => this.grid = d3.select(n)} />
+            <g ref={n => this.cursor = d3.select(n)} />
+            <g ref={n => this.bar = d3.select(n)} />
+            <g ref={n => this.text = d3.select(n)} />
+            <g ref={n => this.marky = d3.select(n)} />
+            <g ref={n => this.menu = n} />
+            <g ref={n => this.calendar = d3.select(n)} />
           </g>
         </svg>
       </div>
