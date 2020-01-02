@@ -7,7 +7,8 @@ import cloneDeep from 'clone-deep';
 export const unit = 24;
 export const unitScale = (24*60*60*1000/unit);
 export const Utils = utils({ unit, unitScale });
-export const fontSize = 16;
+export const fontSize = 12;
+export const gridScale = 1.4;
 
 function roundRect(x, y, width, height) {
   const r = height / 2;
@@ -119,10 +120,10 @@ export default class ScheduleView extends Component {
     const svg = this.svg;
 
     this.xScale = d3.scaleLinear()
-      .domain([0, 0+width])
+      .domain([0, 0+width*gridScale])
       .range([0, width]);
     this.yScale = d3.scaleLinear()
-      .domain([0, 0+height])
+      .domain([0, 0+height*gridScale])
       .range([0, height]);
 
     this.dragLeftHandle = d3.drag()
@@ -400,7 +401,7 @@ export default class ScheduleView extends Component {
         this.updateCalendar();
         const bar = this.bar;
         const text = this.text;
-        this.zoomXScale = this.xScale(1)-this.xScale(0);
+        this.zoomXScale = (this.xScale(1)-this.xScale(0))*gridScale;
         bar.selectAll('path.body')
           .attr('d', this.drawRectangle)
         bar.selectAll('path.left')
@@ -460,7 +461,7 @@ export default class ScheduleView extends Component {
     this.zoomYPos = this.props.position.y;
     this.zoomBehavior
       .translateTo(svg,
-        this.props.position.x+this.xScale.invert(this.clientWidth/2)-this.xScale.invert(0),0,
+        this.props.position.x+(this.xScale.invert(this.clientWidth/2)-this.xScale.invert(0))/gridScale,0,
       )
 
     this.updateGridRectangles();
@@ -886,14 +887,14 @@ export default class ScheduleView extends Component {
       .attr('d', this.drawRectangle);
 
     const _fontScaleX = (v) => {
-      const q = this.xScale(v)-this.xScale(0);
+      const q = (this.xScale(v)-this.xScale(0))*gridScale;
       return q;
     }
     const fontScaleX = (d) => {
       return d.dateType === 'day' ? (_fontScaleX(1) >= 1 ? 1 : _fontScaleX(1)) : 1;
     }
     const faceFont = (d) => {
-      const s = _fontScaleX(1);
+      const s = _fontScaleX(1)*gridScale;
       if (s <= 0.8) {
         if (s < 0.2) return 0;
         return ((s-0.2)/0.6)*0.8;
@@ -917,6 +918,7 @@ export default class ScheduleView extends Component {
       .attr('fill-opacity' , d => d.dateType === 'day' ? faceFont(d) : 0.8)
       .attr('visibility', 'visible')
       .style('pointer-events', 'none')
+      .style('font-weight', 'bold')
 
     calendar
       .selectAll('path')
@@ -1034,8 +1036,7 @@ export default class ScheduleView extends Component {
         self.onEdit(d, i);
       })
 
-    this.zoomXScale = this.xScale(1)-this.xScale(0);
-    console.log(`this.zoomXScale ${this.zoomXScale}`);
+    this.zoomXScale = (this.xScale(1)-this.xScale(0))*gridScale;
 
     g.append('g')
       .append('path')
@@ -1088,8 +1089,7 @@ export default class ScheduleView extends Component {
     const text = this.text;
     self.selectedBar = [];
 
-    this.zoomXScale = this.xScale(1)-this.xScale(0);
-    console.log(`this.zoomXScale ${this.zoomXScale}`);
+    this.zoomXScale = (this.xScale(1)-this.xScale(0))*gridScale;
 
     bar
       .selectAll('path.body')
@@ -1557,7 +1557,7 @@ export default class ScheduleView extends Component {
     const x = Utils.timePosition(time);
     const svg = this.svg;
     this.noMoveY = true;
-    this.zoomBehavior.translateTo(svg, x, 0);
+    this.zoomBehavior.translateTo(svg, x/gridScale, 0);
     // this.zoomBehavior.translateTo(svg, x, oy+oh/2);
   }
 
@@ -1572,8 +1572,8 @@ export default class ScheduleView extends Component {
     // const oh = this.yScale.invert(height)-oy;
     const svg = this.svg;
     this.noMoveY = true;
-    this.zoomYPos = height/2-d.y+unit;
-    this.zoomBehavior.translateTo(svg, d.x+d.width/2, 0);
+    this.zoomYPos = (height/2-d.y/gridScale+unit/gridScale);
+    this.zoomBehavior.translateTo(svg, (d.x+d.width/2)/gridScale, 0);
   }
 
   removeSelectedBar() {
