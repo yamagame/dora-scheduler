@@ -11,15 +11,6 @@ export default function({ unit, unitScale, }) {
     dayPosition: function(millisecond) {
       return parseInt((millisecond/unitScale+unit/2)/unit)*unit;
     },
-    unit: function(d=1) {
-      return unit*d;
-    },
-    unitMillisecond: function(d=unit) {
-      return d*unitScale+timeZoneOffset;
-    },
-    unitTime: function(d=unit) {
-      return new Date(d*unitScale+timeZoneOffset);
-    },
     dateStr: function(date) {
       const d = ("00"+date.getDate()).slice(-2);
       const y = ("00"+date.getFullYear()).slice(-4);
