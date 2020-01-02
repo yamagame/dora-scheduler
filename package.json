@@ -67,6 +67,7 @@
   "scripts": {
     "start": "REACT_APP_MODE=development node scripts/start.js",
     "build": "REACT_APP_MODE=production node scripts/build.js",
+    "start-demo": "REACT_APP_MODE=demo node scripts/start.js",
     "build-to-docs": "REACT_APP_MODE=demo PUBLIC_URL=/dora-scheduler node scripts/build.js && ./copy-to-docs.sh",
     "test": "node scripts/test.js"
   },
