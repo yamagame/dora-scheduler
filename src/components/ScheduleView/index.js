@@ -104,6 +104,7 @@ export default class ScheduleView extends Component {
     this.zoomYPos = null;
     this.zoomXScale = null;
     this.noMoveY = false;
+    this.infoData = [];
   }
 
   componentWillMount() {
@@ -654,7 +655,7 @@ export default class ScheduleView extends Component {
     }
     for (var x = ox; x < dx + (unit * 2); x += (unit * 2)) {
       this.gridData.push({
-        x: x+Utils.timeZoneOffset, y: 0, width: unit, height: unit, color: 'rgba(220,220,255,0.2)', type: 'vertical',
+        x: x+Utils.timeZoneOffset, y: 0, width: unit, height: unit, color: 'rgba(220,220,235,0.2)', type: 'vertical',
       })
     }
   }
@@ -668,6 +669,7 @@ export default class ScheduleView extends Component {
     const years = {};
     const month = {};
     const unitTime = unit*unitScale;
+    const dayCell = [];
 
     //日
     for (var x=x1;x<=x2;x+=unit) {
@@ -687,7 +689,7 @@ export default class ScheduleView extends Component {
         month[monthKey].end = endTime;
       }
       month[monthKey].month = date.getMonth()+1;
-      let color = "#FFFFFFFF";
+      let color = null;
       if (day === 0) {
         color = "#FFDCDCFF";
       } else
@@ -700,7 +702,7 @@ export default class ScheduleView extends Component {
           color = d.color;
         }
       }
-      this.calendarData.push({
+      dayCell.push({
         x: x+Utils.timeZoneOffset,
         y: unit*2,
         width: unit,
@@ -710,7 +712,7 @@ export default class ScheduleView extends Component {
         dateType: 'day',
         text: date.getDate(),
         time: date,
-      })
+      });
     }
 
     //年
@@ -750,8 +752,21 @@ export default class ScheduleView extends Component {
           dateType: 'month',
           text: v.month,
         })
+        this.calendarData.push({
+          x: Math.max(v.start/unitScale+Utils.timeZoneOffset, r1),
+          y: unit*2,
+          width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)),
+          height: unit,
+          color: 'white',
+          type: 'calendar',
+          dateType: 'dayBG',
+        })
       }
     })
+
+    dayCell.forEach( v => {
+      this.calendarData.push(v);
+    });
   }
 
   gridRectangles = () => {
@@ -819,7 +834,7 @@ export default class ScheduleView extends Component {
       .remove();
     calendar
       .selectAll('path.date')
-      .data(this.calendarRectangles())
+      .data(this.calendarRectangles().filter( v => v.color != null))
       .enter()
       .append('path')
       .attr('class', 'date')
@@ -904,7 +919,7 @@ export default class ScheduleView extends Component {
 
     calendar
       .selectAll('text')
-      .data(this.calendarRectangles())
+      .data(this.calendarRectangles().filter( d => d.dateType !== 'day' || faceFont(d) > 0 ))
       .enter()
       .append('text')
       .attr('x', d => this.xScale(d.x+d.width/2)/fontScaleX(d))
@@ -1009,6 +1024,16 @@ export default class ScheduleView extends Component {
     // path.exit()
     //   .remove();
 
+    function pushBarInfo(d, event) {
+      const x1 = Utils.dateStr(new Date(d.x*unitScale));
+      const x2 = Utils.dateStr(new Date((d.x+d.width-unit)*unitScale))
+      self.infoData.push({
+        x: self.xScale.invert(event.clientX),
+        y: d.y-unit,
+        text: `${d.title} : ${x1 !== x2 ? `${x1}-${x2}` : `${x1}`}`,
+      })
+    }
+
     g.append('g')
       .append('path')
       .classed('body', true)
@@ -1035,6 +1060,16 @@ export default class ScheduleView extends Component {
       .on('dblclick',function(d, i){
         self.onEdit(d, i);
       })
+      .on('mouseover', (d, i) => {
+        if (this.shiftKey) {
+          pushBarInfo(d, d3.event);
+          this.updateInfo();
+        }
+      })
+      .on('mouseout', (d, i) => {
+        this.infoData = [];
+        this.updateInfo();
+      })
 
     this.zoomXScale = (this.xScale(1)-this.xScale(0))*gridScale;
 
@@ -1049,6 +1084,16 @@ export default class ScheduleView extends Component {
       .on('dblclick',function(d, i){
         self.onEdit(d, i);
       })
+      .on('mouseover', (d, i) => {
+        if (this.shiftKey) {
+          pushBarInfo(d, d3.event);
+          this.updateInfo();
+        }
+      })
+      .on('mouseout', (d, i) => {
+        this.infoData = [];
+        this.updateInfo();
+      })
 
     g.append('g')
       .append('path')
@@ -1061,7 +1106,17 @@ export default class ScheduleView extends Component {
       .on('dblclick',function(d, i){
         self.onEdit(d, i);
       })
-    
+      .on('mouseover', (d, i) => {
+        if (this.shiftKey) {
+          pushBarInfo(d, d3.event);
+          this.updateInfo();
+        }
+      })
+      .on('mouseout', (d, i) => {
+        this.infoData = [];
+        this.updateInfo();
+      })
+
     g2.append('g')
       .append('text')
       .classed('title', true)
@@ -1226,6 +1281,54 @@ export default class ScheduleView extends Component {
       .data([this.cursorHRectangles()])
       .attr('visibility', d => this.cursorData.visible)
       .attr('d', this.drawRectangle)
+  }
+
+  updateInfo = () => {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+
+    this.info.selectAll('text')
+      .remove()
+    this.infoBG.selectAll('text')
+      .remove()
+    this.infoBG.selectAll('rect')
+      .remove()
+
+    this.infoData.forEach( d => {
+      const text = this.text.append('text')
+        .attr('visibility', 'hidden')
+        .style("pointer-events", "none")
+        .attr('fill', 'black')
+        .attr('font-size', 12)
+        .attr('x', this.xScale(d.x)+8)
+        .attr('y', this.yScale(d.y)+8)
+        .text( `${d.text}` )
+      
+      const bbox = text.node().getBBox();
+
+      if (bbox.x+bbox.width > width) {
+        bbox.x = width-bbox.width-3;
+      }
+
+      this.infoBG.append('rect')
+        .style("pointer-events", "none")
+        .attr('x', bbox.x-2)
+        .attr('y', bbox.y-2)
+        .attr('width', bbox.width+4)
+        .attr('height', bbox.height+4)
+        .style("fill", "white")
+        .style("stroke", "#666")
+        .style("stroke-width", "1.5px");
+
+      this.infoBG.append('text')
+        .style("pointer-events", "none")
+        .attr('fill', 'black')
+        .attr('font-size', 12)
+        .attr('x', bbox.x)
+        .attr('y', bbox.y+11)
+        .text( `${d.text}` )
+
+    });
   }
 
   createBar = () => {
@@ -1770,6 +1873,8 @@ export default class ScheduleView extends Component {
             <g ref={n => this.marky = d3.select(n)} />
             <g ref={n => this.menu = n} />
             <g ref={n => this.calendar = d3.select(n)} />
+            <g ref={n => this.infoBG = d3.select(n)} />
+            <g ref={n => this.info = d3.select(n)} />
           </g>
         </svg>
       </div>
