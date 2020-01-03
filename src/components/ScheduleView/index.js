@@ -9,6 +9,7 @@ export const unitScale = (24*60*60*1000/unit);
 export const Utils = utils({ unit, unitScale });
 export const fontSize = 12;
 export const gridScale = 1.4;
+export const titleFontSize = 11;
 
 function roundRect(x, y, width, height) {
   const r = height / 2;
@@ -416,7 +417,7 @@ export default class ScheduleView extends Component {
           .attr('y', function(d) {
             return calcBarTitleYPostion(this, self, d, self.container.clientWidth);
           })
-          .attr('font-size', fontSize)
+          .attr('font-size', titleFontSize)
         this.redrawCursor();
         this.onChange({
           position: {
@@ -502,7 +503,7 @@ export default class ScheduleView extends Component {
       .attr('y', function(d) {
         return calcBarTitleYPostion(this, self, d, width);
       })
-      .attr('font-size', fontSize)
+      .attr('font-size', titleFontSize)
   }
 
   componentWillUnmount() {
@@ -689,7 +690,7 @@ export default class ScheduleView extends Component {
         month[monthKey].end = endTime;
       }
       month[monthKey].month = date.getMonth()+1;
-      let color = null;
+      let color = "#00000000";
       if (day === 0) {
         color = "#FFDCDCFF";
       } else
@@ -838,7 +839,7 @@ export default class ScheduleView extends Component {
       .enter()
       .append('path')
       .attr('class', 'date')
-      .attr('stroke', 'lightgray')
+      .attr('stroke', 'white')
       .attr('stroke-width', 1)
       .attr('fill', (d) => {
         if (d.selected) {
@@ -1120,9 +1121,11 @@ export default class ScheduleView extends Component {
     g2.append('g')
       .append('text')
       .classed('title', true)
-      .attr('font-size', fontSize)
+      .attr('font-size', titleFontSize)
+      .attr('fill', 'blue')
       .style('pointer-events', 'none')
       .style('zIndex', 10)
+      .style('font-weight', 'bold')
       .text(d => d.title)
       .attr("text-anchor", "start")
       .attr("alignment-baseline", "auto")
@@ -1299,7 +1302,7 @@ export default class ScheduleView extends Component {
         .attr('visibility', 'hidden')
         .style("pointer-events", "none")
         .attr('fill', 'black')
-        .attr('font-size', 12)
+        .attr('font-size', titleFontSize)
         .attr('x', this.xScale(d.x)+8)
         .attr('y', this.yScale(d.y)+8)
         .text( `${d.text}` )
@@ -1323,7 +1326,7 @@ export default class ScheduleView extends Component {
       this.infoBG.append('text')
         .style("pointer-events", "none")
         .attr('fill', 'black')
-        .attr('font-size', 12)
+        .attr('font-size', titleFontSize)
         .attr('x', bbox.x)
         .attr('y', bbox.y+11)
         .text( `${d.text}` )
@@ -1365,14 +1368,16 @@ export default class ScheduleView extends Component {
     //if (this.focused) 
     {
 
-      const move = (x, y) => {
+      const moveTo = (x, y) => {
         if (!this.props.readonly) {
+          const selectedBar = cloneDeep(this.selectedBar)
           this.selectedBar.forEach( v => {
             if (!readOnly(v.d)) {
               v.d.x += x;
             }
             v.d.y += y;
           })
+          this.setUndo(selectedBar.map( v => v.d ), this.selectedBar.map( v => v.d ));
           this.updateBarData(this.selectedBar);
           this.updateBarSelectState();
         }
@@ -1380,6 +1385,7 @@ export default class ScheduleView extends Component {
 
       const textPosition = (x, y) => {
         if (!this.props.readonly) {
+          const selectedBar = cloneDeep(this.selectedBar)
           this.selectedBar.forEach( v => {
             if (!readOnly(v.d)) {
               if (!v.d.titlePos || typeof(v.d.titlePos) !== 'object') v.d.titlePos = { x:0, y: 0 };
@@ -1394,6 +1400,7 @@ export default class ScheduleView extends Component {
               v.d.titlePos.y = limit(v.d.titlePos.y);
             }
           })
+          this.setUndo(selectedBar.map( v => v.d ), this.selectedBar.map( v => v.d ));
           this.updateBarData(this.selectedBar);
           this.updateBarSelectState();
         }
@@ -1462,7 +1469,7 @@ export default class ScheduleView extends Component {
         if (e.shiftKey) {
           textPosition(0, -1);
         } else {
-          move(0, -unit);
+          moveTo(0, -unit);
         }
       }
       //down key 
@@ -1471,7 +1478,7 @@ export default class ScheduleView extends Component {
         if (e.shiftKey) {
           textPosition(0, 1);
         } else {
-          move(0, unit);
+          moveTo(0, unit);
         }
       }
       //left key 
@@ -1480,7 +1487,7 @@ export default class ScheduleView extends Component {
         if (e.shiftKey) {
           textPosition(-1, 0);
         } else {
-          move(-unit, 0);
+          moveTo(-unit, 0);
         }
       }
       //right key 
@@ -1489,7 +1496,7 @@ export default class ScheduleView extends Component {
         if (e.shiftKey) {
           textPosition(1, 0);
         } else {
-          move(unit, 0);
+          moveTo(unit, 0);
         }
       }
       //delete key
