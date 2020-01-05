@@ -147,8 +147,6 @@ export default class ScheduleView extends Component {
         var rect = d3.select(this)
         const bar = self.bar;
 
-        const selectedBar = cloneDeep(d)
-
         if (!d.selected && !self.shiftKey) {
           bar.selectAll('.selected')
             .each((d) => {
@@ -168,32 +166,47 @@ export default class ScheduleView extends Component {
         self.currentTitlePos = d.titlePos;
         self.updateBarSelectState();
 
+        const dragBars = self.selectedBar;
+        const selectedBar = cloneDeep(self.selectedBar)
+
         if (!self.props.readonly && !readOnly(d)) {
-          d.ow = d.x+d.width;
-          d.ox = self.xScale(d.x);
-          d.xx = d.x;
+          dragBars.forEach((b) => {
+            const d = b.d;
+            d.ow = d.x+d.width;
+            d.ox = self.xScale(d.x);
+            d.xx = d.x;
+          })
           const dragged = (d) => {
-            d.ox += d3.event.dx;
-            d.x = self.xScale.invert(d.ox);
-            d.width = d.ow-d.x;
-            if (d.width < unit) {
-              d.x = d.ow-unit;
-              d.width = unit;
-            }
+            dragBars.forEach((b) => {
+              const d = b.d;
+              d.ox += d3.event.dx;
+              d.x = self.xScale.invert(d.ox);
+              d.width = d.ow-d.x;
+              if (d.width < unit) {
+                d.x = d.ow-unit;
+                d.width = unit;
+              }
+            })
             self.updateBarSelectState();
           }
           const ended = (d) => {
-            let x = Math.floor((d.x-Utils.timeZoneOffset+unit/2)/unit)*unit+Utils.timeZoneOffset;
-            let dx = x-d.x;
-            d.x = x;
-            d.width -= dx;
-            const changed = (d.xx !== d.x);
-            delete d.ow;
-            delete d.ox;
-            delete d.xx;
-            if (changed) {
-              self.setUndo([ selectedBar ], [ d ]);
-              self.updateBarData([{ d, i }]);
+            const changedBars = [];
+            dragBars.forEach((b) => {
+              const d = b.d;
+              let x = Math.floor((d.x-Utils.timeZoneOffset+unit/2)/unit)*unit+Utils.timeZoneOffset;
+              let dx = x-d.x;
+              d.x = x;
+              d.width -= dx;
+              if (d.xx !== d.x) {
+                changedBars.push(b);
+              }
+              delete d.ow;
+              delete d.ox;
+              delete d.xx;
+            })
+            if (changedBars.length > 0) {
+              self.setUndo(selectedBar.map( v => v.d ), self.selectedBar.map( v => v.d ));
+              self.updateBarData(self.selectedBar);
             }
             self.updateBarSelectState();
           }
@@ -206,8 +219,6 @@ export default class ScheduleView extends Component {
         var rect = d3.select(this)
         const bar = self.bar;
 
-        const selectedBar = cloneDeep(d)
-
         if (!d.selected && !self.shiftKey) {
           bar.selectAll('.selected')
             .each((d) => {
@@ -227,25 +238,40 @@ export default class ScheduleView extends Component {
         self.currentTitlePos = d.titlePos;
         self.updateBarSelectState();
 
+        const selectedBar = cloneDeep(self.selectedBar)
+        const dragBars = self.selectedBar;
+
         if (!self.props.readonly && !readOnly(d)) {
-          d.ow = d.x;
-          d.ox = self.xScale(d.x+d.width);
-          d.ww = d.width;
+          dragBars.forEach((b) => {
+            const d = b.d;
+            d.ow = d.x;
+            d.ox = self.xScale(d.x+d.width);
+            d.ww = d.width;
+          })
           const dragged = (d) => {
-            d.ox += d3.event.dx;
-            d.width = self.xScale.invert(d.ox)-d.ow;
-            if (d.width < unit) d.width = unit;
+            dragBars.forEach((b) => {
+              const d = b.d;
+              d.ox += d3.event.dx;
+              d.width = self.xScale.invert(d.ox)-d.ow;
+              if (d.width < unit) d.width = unit;
+            })
             self.updateBarSelectState();
           }
           const ended = (d, i) => {
-            d.width = Math.floor((d.width+unit/2)/unit)*unit;
-            const changed = (d.ww !== d.width);
-            delete d.ow;
-            delete d.ox;
-            delete d.ww;
-            if (changed) {
-              self.setUndo([selectedBar], [ d ]);
-              self.updateBarData([{ d, i }]);
+            const changedBars = [];
+            dragBars.forEach((b) => {
+              const d = b.d;
+              d.width = Math.floor((d.width+unit/2)/unit)*unit;
+              if (d.ww !== d.width) {
+                changedBars.push(b);
+              }
+              delete d.ow;
+              delete d.ox;
+              delete d.ww;
+            })
+            if (changedBars.length > 0) {
+              self.setUndo(selectedBar.map( v => v.d ), self.selectedBar.map( v => v.d ));
+              self.updateBarData(self.selectedBar);
             }
             self.updateBarSelectState();
           }
