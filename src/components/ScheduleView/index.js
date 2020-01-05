@@ -862,7 +862,7 @@ export default class ScheduleView extends Component {
   todayRectangles = () => {
     const { unit, unitScale } = this.props;
     const today = new Date();
-    const x = parseInt(today.getTime()/(24*60*60*1000))*unit;
+    const x = parseInt(today.getTime()/unitScale);
     return [
       { x: x+Utils.timeZoneOffset, y: unit*2, height: unit, width: unit, color: 'rgba(0,255,0,0.6)', type: 'calendar-circle', }
     ]
