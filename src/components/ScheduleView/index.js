@@ -20,6 +20,10 @@ function rect(x1, y1, x2, y2) {
   return `M ${x1},${y1} L ${x2},${y1} L ${x2},${y2} L ${x1},${y2} z`;
 }
 
+function triangle(x1, y1, x2, y2, x3, y3) {
+  return `M ${x1},${y1} L ${x3},${y3} L ${x2},${y2} L ${x1},${y1} z`;
+}
+
 function gridFitX(self, x) {
   const { unit } = self.props;
   if (x < 0) {
@@ -36,6 +40,10 @@ function gridFitY(self, x) {
   } else {
     return parseInt(x/unit)*unit;
   }
+}
+
+function intersect(rect, x, y) {
+  return (rect.x <= x && x < rect.x + rect.width && rect.y <= y && y < rect.y + rect.height);
 }
 
 function calcBarTitleXPostion(bar, self, d, width) {
@@ -90,7 +98,10 @@ export default class ScheduleView extends Component {
       width: unit,
       height: unit,
       color: 'rgba(255,0,0,0.05)',
-      visible: 'hidden',
+      visible: {
+        h: 'hidden',
+        v: 'hidden',
+      }
     }
     this.selectedBar = [];
     this.state = {
@@ -106,6 +117,8 @@ export default class ScheduleView extends Component {
     this.zoomXScale = null;
     this.noMoveY = false;
     this.infoData = [];
+    this.menuWidth = props.menu.width ? props.menu.width : 100;
+    this.menuOpened = props.menu.opened;
   }
 
   componentWillMount() {
@@ -370,6 +383,28 @@ export default class ScheduleView extends Component {
         d3.event.on("drag", dragged).on("end", ended);
       })
 
+    this.dragMenuHandle = d3.drag()
+      .on('start', (d, i) => {
+        const dragged = (d) => {
+          this.menuWidth += d3.event.dx;
+          this.updateMenu();
+        }
+        const ended = () => {
+          if (this.menuWidth <= 0) {
+            this.menuWidth = 100;
+            this.menuOpened = false;
+          }
+          this.updateMenu();
+          this.onChange({
+            menu: {
+              width: this.menuWidth,
+              opened: this.menuOpened,
+            },
+          })
+        }
+        d3.event.on("drag", dragged).on("end", ended);
+      })
+
     let zoomMoved = 0;
     let zoomScale = null;
     let zoomYPos = null;
@@ -401,6 +436,7 @@ export default class ScheduleView extends Component {
         this.updateGrid();
         this.updateCalendarRectangles();
         this.updateCalendar();
+        this.updateMenu();
         const bar = this.bar;
         const text = this.text;
         this.zoomXScale = (this.xScale(1)-this.xScale(0))*gridScale;
@@ -430,16 +466,20 @@ export default class ScheduleView extends Component {
       .on('end', function() {
         if (zoomMoved < 5) {
           const bar = self.bar;
+          const menuRect = self.menuButtonRectangle();
           if (d3.event.sourceEvent /*&& self.focused*/ && self.focusDelayTimer == null) {
             var coords = d3.mouse(this);
             if (!self.props.readonly) {
-              if (coords[1] > self.yScale(unit*3)-self.yScale(0) && self.selectedBar.length === 0) {
+              if (!intersect(menuRect, coords[0], coords[1]) && (!self.menuOpened || coords[0] > self.menuWidth) && coords[1] > self.yScale(unit*3)-self.yScale(0) && self.selectedBar.length === 0) {
                 const cx = gridFitX(self, self.xScale.invert(coords[0]));
                 const cy = gridFitY(self, self.yScale.invert(coords[1]));
                 if (cx === self.cursorData.x && cy === self.cursorData.y) {
-                  self.cursorData.visible = (self.cursorData.visible === 'visible')?'hidden':'visible';
+                  const v = (self.cursorData.visible.h || self.cursorData.visible.v)? false　:　true ;
+                  self.cursorData.visible.h = v;
+                  self.cursorData.visible.v = v;
                 } else {
-                  self.cursorData.visible = 'visible';
+                  self.cursorData.visible.h = true;
+                  self.cursorData.visible.v = true;
                 }
                 self.cursorData.x = cx;
                 self.cursorData.y = cy;
@@ -452,17 +492,17 @@ export default class ScheduleView extends Component {
         }
       })
 
-    svg
+    this.base
       .call(this.zoomBehavior)
       .on('dblclick.zoom', null)
       .call(this.dragMarky);
 
     this.zoomBehavior
-      .scaleTo(svg, this.props.scale);
+      .scaleTo(this.base, this.props.scale);
     this.noMoveY = true;
     this.zoomYPos = this.props.position.y;
     this.zoomBehavior
-      .translateTo(svg,
+      .translateTo(this.base,
         this.props.position.x+(this.xScale.invert(this.clientWidth/2)-this.xScale.invert(0))/gridScale,0,
       )
 
@@ -474,6 +514,7 @@ export default class ScheduleView extends Component {
     this.updateMarky();
     this.updateCursor();
     this.updateBarSelectState();
+    this.updateMenu();
     document.addEventListener('copy', this.handleCopy);
     document.addEventListener('paste', this.handlePaste);
     document.addEventListener('keydown', this.handleShortcuts)
@@ -504,6 +545,7 @@ export default class ScheduleView extends Component {
         return calcBarTitleYPostion(this, self, d, width);
       })
       .attr('font-size', titleFontSize)
+    this.updateMenu();
   }
 
   componentWillUnmount() {
@@ -807,6 +849,8 @@ export default class ScheduleView extends Component {
   }
 
   updateGrid = () => {
+    const width = this.container.clientWidth;
+
     const grid = this.grid;
     grid
       .selectAll('path')
@@ -822,6 +866,34 @@ export default class ScheduleView extends Component {
       .attr('stroke-width', 2)
       .attr('fill', (d) => d.color ? d.color : 'none')
       .attr('d', this.drawRectangle)
+
+    grid
+      .selectAll('line')
+      .remove();
+
+    const menuData = {}
+    this.state.barData.forEach( v => {
+      if (!menuData[v.y] || (menuData[v.y] && menuData[v.y].x > v.x)) {
+        if (v.headingFlag && v.title && v.title.trim() !== '') {
+          menuData[v.y] = v;
+        }
+      }
+    })
+    this.menuData = Object.keys(menuData).map( k => {
+      return menuData[k];
+    });
+
+    grid
+      .selectAll('line')
+      .data(this.menuData)
+      .enter()
+      .append('line')
+      .attr('x1', 0)
+      .attr('y1', d => this.yScale(Math.floor((d.y+unit/2)/unit)*unit))
+      .attr('x2', width)
+      .attr('y2', d => this.yScale(Math.floor((d.y+unit/2)/unit)*unit))
+      .style("stroke", "lightgray")
+      .style("stroke-width", 1)
   }
 
   updateCalendar = () => {
@@ -867,17 +939,14 @@ export default class ScheduleView extends Component {
         }
       })
       .on('click', (d) => {
-        // if (d.time) {
-        //   if (this.state.selectDay && d.time.getTime() === this.state.selectDay.getTime()) {
-        //     this.setState({
-        //       selectDay: null,
-        //     })
-        //   } else {
-        //     this.setState({
-        //       selectDay: d.time,
-        //     })
-        //   }
-        // }
+        const x = d.time.getTime()/unitScale+Utils.timeZoneOffset;
+        if (this.cursorData.visible.v && x == this.cursorData.x) {
+          this.cursorData.visible.v = false;
+        } else {
+          this.cursorData.x = x;
+          this.cursorData.visible.v = true;
+        }
+        this.redrawCursor();
       })
 
     calendar
@@ -1202,6 +1271,12 @@ export default class ScheduleView extends Component {
       .attr('d', this.drawRectangle)
   }
 
+  barDateText = (d) => {
+    const x1 = Utils.dateStr(new Date(d.x*unitScale));
+    const x2 = Utils.dateStr(new Date((d.x+d.width-unit)*unitScale))
+    return x1 !== x2 ? `${x1}-${x2}` : `${x1}`;
+  }
+
   cursorRectangles = () => {
     return this.cursorData;
   }
@@ -1214,7 +1289,7 @@ export default class ScheduleView extends Component {
       width: unit,
       type: 'vertical',
       color: this.cursorData.color,
-      visible: this.cursorData.visible,
+      visible: this.cursorData.visible.v,
     };
   }
   
@@ -1226,7 +1301,7 @@ export default class ScheduleView extends Component {
       width: unit,
       type: 'horizontal',
       color: this.cursorData.color,
-      visible: this.cursorData.visible,
+      visible: this.cursorData.visible.h,
     };
   }
 
@@ -1234,12 +1309,12 @@ export default class ScheduleView extends Component {
     const cursor = this.cursor;
     cursor
       .selectAll('path.cursor')
-      .data([this.cursorRectangles()])
+      .data([this.cursorData])
       .enter()
       .append('path')
       .attr('class', 'cursor')
       //.style("pointer-events", "none")
-      .attr('visibility', d => this.cursorData.visible)
+      .attr('visibility', d => (this.cursorData.visible.v && this.cursorData.visible.h) ? 'visible' : 'hidden' )
       .attr('stroke', 'none')
       .attr('stroke-width', 2)
       .attr('fill', (d) => d.color ? d.color : 'none')
@@ -1251,7 +1326,7 @@ export default class ScheduleView extends Component {
       .append('path')
       .attr('class', 'v-cursor')
       //.style("pointer-events", "none")
-      .attr('visibility', d => this.cursorData.visible)
+      .attr('visibility', d => d.visible ? 'visible' : 'hidden' )
       .attr('stroke', 'none')
       .attr('stroke-width', 2)
       .attr('fill', (d) => d.color ? d.color : 'none')
@@ -1263,7 +1338,7 @@ export default class ScheduleView extends Component {
       .append('path')
       .attr('class', 'h-cursor')
       //.style("pointer-events", "none")
-      .attr('visibility', d => this.cursorData.visible)
+      .attr('visibility', d => d.visible ? 'visible' : 'hidden' )
       .attr('stroke', 'none')
       .attr('stroke-width', 2)
       .attr('fill', (d) => d.color ? d.color : 'none')
@@ -1273,16 +1348,16 @@ export default class ScheduleView extends Component {
   redrawCursor = () => {
     const cursor = this.cursor;
     cursor.selectAll('path.cursor')
-      .data([this.cursorRectangles()])
-      .attr('visibility', d => this.cursorData.visible)
+      .data([this.cursorData])
+      .attr('visibility', d => (this.cursorData.visible.v && this.cursorData.visible.h) ? 'visible' : 'hidden')
       .attr('d', this.drawRectangle)
     cursor.selectAll('path.v-cursor')
       .data([this.cursorVRectangles()])
-      .attr('visibility', d => this.cursorData.visible)
+      .attr('visibility', d => d.visible ? 'visible' : 'hidden')
       .attr('d', this.drawRectangle)
     cursor.selectAll('path.h-cursor')
       .data([this.cursorHRectangles()])
-      .attr('visibility', d => this.cursorData.visible)
+      .attr('visibility', d => d.visible ? 'visible' : 'hidden')
       .attr('d', this.drawRectangle)
   }
 
@@ -1334,8 +1409,211 @@ export default class ScheduleView extends Component {
     });
   }
 
+  menuButtonRectangle = () => {
+    const x = this.menuOpened ? this.menuWidth-16 : 0 ;
+    const y = (this.yScale(unit) - this.yScale(0))*3+1;
+    const w = 16;
+    return { x, y, width: w, height: w }
+  }
+
+  updateMenu = () => {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    this.menuGrid = [];
+
+    const { unit } = this.props;
+    const ox = Math.floor(this.xScale.invert(0) / (unit * 2)) * (unit * 2);
+    const oy = Math.floor(this.yScale.invert(0) / (unit * 2)) * (unit * 2);
+    const dx = Math.floor((this.xScale.invert(this.container.clientWidth)-Utils.timeZoneOffset) / (unit * 2)) * (unit * 2);
+    const dy = Math.floor(this.yScale.invert(this.container.clientHeight) / (unit * 2)) * (unit * 2);
+    let d = 0;
+    for (var y = oy; y < dy + unit*2; y += unit) {
+      if (d % 2 == 0) {
+        this.menuGrid.push({
+          x: 0, y: y, width: unit, height: unit, color: 'rgba(255,255,255,0.9)', type: 'horizontal',
+        })
+      } else {
+        this.menuGrid.push({
+          x: 0, y: y, width: unit, height: unit, color: 'rgba(250,250,255,0.9)', type: 'horizontal',
+        })
+      }
+      d ++;
+    }
+
+    this.menu
+      .selectAll('rect')
+      .remove();
+
+    this.menu
+      .selectAll('line')
+      .remove();
+
+    //draw menu bg
+    if (this.menuOpened && this.menuWidth > 0) {
+      this.menu
+        .selectAll('rect')
+        .data(this.menuGrid)
+        .enter()
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', d => this.yScale(d.y))
+        .attr('width', this.menuOpened ? this.menuWidth : 0)
+        .attr('height', this.yScale(unit) - this.yScale(0))
+        .style("fill", d => d.color)
+        .style("stroke", "none")
+        .on('dblclick', (d) => {
+        })
+        .on('click', (d) => {
+          if (this.cursorData.visible.h && this.cursorData.y == d.y) {
+            this.cursorData.visible.h = false;
+          } else {
+            this.cursorData.y = d.y;
+            this.cursorData.visible.h = true;
+          }
+          this.redrawCursor();
+        })
+
+      this.menu
+        .append('line')
+        .attr('x1', this.menuOpened ? this.menuWidth : 0)
+        .attr('y1', 0)
+        .attr('x2', this.menuOpened ? this.menuWidth : 0)
+        .attr('y2', height)
+        .style("stroke", "lightgray")
+        .style("stroke-width", 1)
+
+      this.menu
+        .append('rect')
+        .attr('x', (this.menuOpened ? this.menuWidth : 0)-2)
+        .attr('y', 0)
+        .attr('width', 4)
+        .attr('height', height)
+        .attr('fill', 'rgba(0,0,0,0)')
+        .style('cursor', 'ew-resize')
+        .call(this.dragMenuHandle);
+    }
+
+    this.menuMask
+      .selectAll('rect')
+      .remove();
+    this.menuInfo
+      .selectAll('text')
+      .remove();
+    this.menuInfo
+      .selectAll('line')
+      .remove();
+
+    //draw menu text
+    if (this.menuOpened && this.menuWidth > 0) {
+
+      const menuData = {}
+      this.state.barData.forEach( v => {
+        if (!menuData[v.y] || (menuData[v.y] && menuData[v.y].x > v.x)) {
+          if (v.headingFlag && v.title && v.title.trim() !== '') {
+            menuData[v.y] = v;
+          }
+        }
+      })
+      this.menuData = Object.keys(menuData).map( k => {
+        return menuData[k];
+      });
+
+      this.menuMask
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', 0)
+        .attr('width', this.menuOpened ? this.menuWidth : 0)
+        .attr('height', height)
+        .attr('fill', 'white')
+
+      this.menuInfo
+        .selectAll('text')
+        .data(this.menuData)
+        .enter()
+        .append('text')
+        .style("pointer-events", "none")
+        .attr('fill', 'black')
+        .attr('font-size', fontSize)
+        .attr('font-weight', 'bold')
+        .attr('x', 8)
+        .attr('y', d => this.yScale(Math.floor((d.y+unit/2)/unit)*unit+unit/2+unit/4))
+        .text(  d => d.title )
+
+      this.menuInfo
+        .selectAll('line')
+        .data(this.menuData)
+        .enter()
+        .append('line')
+        .attr('x1', 0)
+        .attr('y1', d => this.yScale(Math.floor((d.y+unit/2)/unit)*unit))
+        .attr('x2', this.menuWidth)
+        .attr('y2', d => this.yScale(Math.floor((d.y+unit/2)/unit)*unit))
+        .style("stroke", "lightgray")
+        .style("stroke-width", 1)
+    }
+
+    //draw open close button
+    {
+      this.menu
+        .selectAll('g')
+        .remove();
+
+      const openButton = this.menu
+        .append('g')
+      
+      const menuRect = this.menuButtonRectangle();
+      const x = menuRect.x;
+      const y = menuRect.y;
+      const w = menuRect.width;
+      const h = menuRect.height;
+      
+      openButton
+        .append('rect')
+        .attr('x', x)
+        .attr('y', y)
+        .attr('width', w)
+        .attr('height', h)
+        .style("fill", 'white')
+        .style("stroke", "lightgray")
+        .style("stroke-width", 1)
+        .on('click', (d) => {
+          if (this.menuWidth === 0 || this.menuOpened == false) {
+            if (this.menuWidth === 0) {
+              this.menuWidth = 100;
+            }
+            this.menuOpened = true;
+          } else {
+            this.menuOpened = false;
+          }
+          this.onChange({
+            menu: {
+              width: this.menuWidth,
+              opened: this.menuOpened,
+            },
+          })
+          this.updateMenu();
+        })
+
+      openButton
+        .append('path')
+        .attr('class', 'line')
+        .style("pointer-events", "none")
+        .attr('stroke', 'none')
+        .attr('stroke-width', 2)
+        .attr('fill', 'lightgray')
+        .attr('d', () => {
+          if (this.menuOpened) {
+            return triangle( x+1, y+(h-2)/2, x+w-2, y+h-1, x+w-2, y+1 )
+          } else {
+            return triangle( x+w-2, y+(h-2)/2, x+1, y+h-1, x+1, y+1 )
+          }
+        })
+    }
+
+  }
+
   createBar = () => {
-    if (!this.props.readonly && this.cursorData.visible === 'visible') {
+    if (!this.props.readonly && this.cursorData.visible.h && this.cursorData.visible.v) {
       const bar = {
         uuid: uuidv4(),
         x: this.cursorData.x,
@@ -1365,21 +1643,28 @@ export default class ScheduleView extends Component {
 
   handleShortcuts = (e) => {
     this.shiftKey = e.shiftKey;
-    //if (this.focused) 
+    if (this.props.focused) 
     {
 
       const moveTo = (x, y) => {
         if (!this.props.readonly) {
           const selectedBar = cloneDeep(this.selectedBar)
-          this.selectedBar.forEach( v => {
-            if (!readOnly(v.d)) {
-              v.d.x += x;
-            }
-            v.d.y += y;
-          })
-          this.setUndo(selectedBar.map( v => v.d ), this.selectedBar.map( v => v.d ));
-          this.updateBarData(this.selectedBar);
-          this.updateBarSelectState();
+          if (this.selectedBar.length > 0) {
+            this.selectedBar.forEach( v => {
+              if (!readOnly(v.d)) {
+                v.d.x += x;
+              }
+              v.d.y += y;
+            })
+            this.setUndo(selectedBar.map( v => v.d ), this.selectedBar.map( v => v.d ));
+            this.updateBarData(this.selectedBar);
+            this.updateBarSelectState();
+          } else {
+            this.cursorData.x += x;
+            this.cursorData.y += y;
+            this.updateCursor();
+            this.redrawCursor();
+          }
         }
       }
 
@@ -1658,32 +1943,17 @@ export default class ScheduleView extends Component {
 
   moveToDay(date) {
     const time = date.getTime();
-    // const width = this.clientWidth;
-    const height = this.container.clientHeight;
-    // const ox = this.xScale.invert(0);
-    const oy = this.yScale.invert(0);
-    // const ow = this.xScale.invert(width)-ox;
-    const oh = this.yScale.invert(height)-oy;
     const x = Utils.timePosition(time);
-    const svg = this.svg;
     this.noMoveY = true;
-    this.zoomBehavior.translateTo(svg, x/gridScale, 0);
-    // this.zoomBehavior.translateTo(svg, x, oy+oh/2);
+    this.zoomBehavior.translateTo(this.base, x/gridScale, 0);
   }
 
   moveToCenter(bar) {
     const d = bar;
     const height = this.container.clientHeight;
-    // const width = this.clientWidth;
-    // const height = this.clientHeight;
-    // const ox = this.xScale.invert(0);
-    // const oy = this.yScale.invert(0);
-    // const ow = this.xScale.invert(width)-ox;
-    // const oh = this.yScale.invert(height)-oy;
-    const svg = this.svg;
     this.noMoveY = true;
     this.zoomYPos = (height/2-d.y/gridScale+unit/gridScale);
-    this.zoomBehavior.translateTo(svg, (d.x+d.width/2)/gridScale, 0);
+    this.zoomBehavior.translateTo(this.base, (d.x+d.width/2)/gridScale, 0);
   }
 
   removeSelectedBar() {
@@ -1705,7 +1975,7 @@ export default class ScheduleView extends Component {
     const barData = [ ...this.state.barData ]
     var data=[];
     var y = this.cursorData.y;
-    if (this.cursorData.visible !== 'visible') return;
+    if (!this.cursorData.visible) return;
     // this.state.barData.forEach( v => {
     //   if (v.selected) {
     //     if (y==null || y > v.y) {
@@ -1863,8 +2133,12 @@ export default class ScheduleView extends Component {
             ...this.props.style,
           }}
         >
+          <defs>
+            <mask id="MenuMask" ref={n => this.menuMask = d3.select(n)}>
+            </mask>
+          </defs>
           <g
-            ref={n => this.base = n}
+            ref={n => this.base = d3.select(n)}
           >
             <rect
               x={0}
@@ -1878,7 +2152,8 @@ export default class ScheduleView extends Component {
             <g ref={n => this.bar = d3.select(n)} />
             <g ref={n => this.text = d3.select(n)} />
             <g ref={n => this.marky = d3.select(n)} />
-            <g ref={n => this.menu = n} />
+            <g ref={n => this.menu = d3.select(n)} />
+            <g ref={n => this.menuInfo = d3.select(n)} mask="url(#MenuMask)" />
             <g ref={n => this.calendar = d3.select(n)} />
             <g ref={n => this.infoBG = d3.select(n)} />
             <g ref={n => this.info = d3.select(n)} />
@@ -1897,8 +2172,13 @@ ScheduleView.defaultProps = {
     x: parseInt(((new Date()).getTime()/unitScale+unit/2)/unit)*unit,
     y: 0,
   },
+  menu: {
+    width: 100,
+    opened: false,
+  },
   scale: 1,
   unit,
   unitScale,
   readonly: false,
+  focused: false,
 }

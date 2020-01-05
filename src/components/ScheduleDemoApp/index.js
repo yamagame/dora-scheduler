@@ -52,9 +52,14 @@ class ScheduleApp extends Component {
         b: 0,
         a: 1,
       }),
+      menu: AsyncStorage.getItem('menu', {
+        width: 100,
+        opened: false,
+      }),
       showScheduleDataDialog: false,
       scheduleData: '',
       calendarData: AsyncStorage.getItem('calendarData', {}),
+      focused: true,
     }
   }
 
@@ -76,6 +81,7 @@ class ScheduleApp extends Component {
   onEdit = (d) => {
     this.setState({
       showEditDialog: true,
+      focused: false,
       editBar: d,
     })
   }
@@ -115,6 +121,9 @@ class ScheduleApp extends Component {
     if ('scale' in event) {
       AsyncStorage.setItem('scale', event.scale);
     }
+    if ('menu' in event) {
+      AsyncStorage.setItem('menu', event.menu);
+    }
   }
 
   onKeyDown = (event) => {
@@ -146,6 +155,7 @@ class ScheduleApp extends Component {
   onClose = () => {
     this.setState({
       showEditDialog: false,
+      focused: true,
     })
   }
 
@@ -154,6 +164,7 @@ class ScheduleApp extends Component {
     const d = this.scheduleView.setBar(bar);
     this.setState({
       showEditDialog: false,
+      focused: true,
       barData,
     }, () => this.saveBarData());
   }
@@ -194,6 +205,7 @@ class ScheduleApp extends Component {
       })
       this.setState({
         showEditDialog: false,
+        focused: true,
         barData,
       }, () => this.saveBarData());
     })
@@ -219,6 +231,7 @@ class ScheduleApp extends Component {
     }), null, '  ');
     this.setState({
       showScheduleDataDialog: true,
+      focused: false,
       scheduleData,
     });
   }
@@ -226,6 +239,7 @@ class ScheduleApp extends Component {
   onCloseScheduleData = () => {
     this.setState({
       showScheduleDataDialog: false,
+      focused: true,
     })
   }
 
@@ -257,6 +271,7 @@ class ScheduleApp extends Component {
     }
     this.setState({
       showScheduleDataDialog: false,
+      focused: true,
       barData,
     }, () => this.saveBarData())
   }
@@ -367,6 +382,7 @@ class ScheduleApp extends Component {
             }}
             position={this.state.position}
             scale={this.state.scale}
+            menu={this.state.menu}
             onEdit={this.onEdit}
             onCreate={this.onCreate}
             onMove={this.onMove}
@@ -376,6 +392,7 @@ class ScheduleApp extends Component {
             onEditCalendar={this.onEditCalendar}
             barData={this.state.barData}
             calendarData={this.state.calendarData}
+            focused={this.state.focused}
           />
         </div>
         <ScheduleEditDialog
@@ -385,6 +402,8 @@ class ScheduleApp extends Component {
           text={this.state.editBar.d.text}
           title={this.state.editBar.d.title}
           color={Utils.toColor(this.state.editBar.d.rgba)}
+          headingFlag={this.state.editBar.d.headingFlag}
+          dateInfo={this.scheduleView ? this.scheduleView.barDateText(this.state.editBar.d) : ''}
           onClose={this.onClose}
           onEdited={this.onEdited}
           readonly={(this.state.editBar.d.info) ? this.state.editBar.d.info.readOnly : false}

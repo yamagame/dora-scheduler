@@ -39,6 +39,7 @@ export default class ScheduleEditDialog extends Component {
       title: (props.title === null) ? '' : props.title,
       text: (props.text === null) ? '' : props.text,
       color:  (props.color === null) ? '#00FF00' : props.color,
+      headingFlag: (props.headingFlag === null) ? false : props.headingFlag,
     }
   }
 
@@ -58,6 +59,11 @@ export default class ScheduleEditDialog extends Component {
         color: (nextProps.color === null) ? '#00FF00' : nextProps.color,
       })
     }
+    if (this.props.headingFlag !== nextProps.headingFlag) {
+      this.setState({
+        headingFlag: (nextProps.headingFlag === null) ? false : nextProps.headingFlag,
+      })
+    }
   }
 
   onChangeTitle = (e) => {
@@ -70,6 +76,10 @@ export default class ScheduleEditDialog extends Component {
 
   onChangeText = (value) => {
     this.setState({ text: value });
+  }
+
+  onChangeHeading = (e) => {
+    this.setState({ headingFlag: e.target.checked })
   }
 
   onClose = () => {
@@ -85,6 +95,7 @@ export default class ScheduleEditDialog extends Component {
         rgba: toRGBA(this.state.color),
         title: this.state.title,
         text: this.state.text,
+        headingFlag: (this.state.headingFlag === null) ? false : this.state.headingFlag,
       };
       this.props.onEdited(bar);
     }
@@ -95,6 +106,7 @@ export default class ScheduleEditDialog extends Component {
       title: (this.props.title === null) ? '' : this.props.title,
       text:  (this.props.text === null) ? '' : this.props.text,
       color: (this.props.color === null) ? '' : this.props.color,
+      headingFlag: (this.props.headingFlag === null) ? false : this.props.headingFlag,
     })
   }
 
@@ -113,24 +125,41 @@ export default class ScheduleEditDialog extends Component {
         </Modal.Header>
         <Modal.Body>
           <Row>
-            <Col md={9}>
+            <Col md={8} >
               <input
                 type="text"
-                style={{ width: '100%', marginBottom: 10, }}
+                style={{ fontSize: 16, width: '100%', marginBottom: 10, }}
                 value={this.state.title}
                 onChange={this.onChangeTitle}
                 readOnly={this.props.readonly?'readonly':null}
                 placeholder="バーのタイトル"
               />
             </Col>
-            <Col md={3}>
+            <Col md={2} >
               <input
                 type="text"
-                style={{ width: '100%', marginBottom: 10, }}
+                style={{ fontSize: 16, width: '100%', marginBottom: 10, }}
                 value={this.state.color}
                 onChange={this.onChangeColor}
                 readOnly={this.props.readonly?'readonly':null}
               />
+            </Col>
+            <Col md={2}>
+              <div
+                className="form-check"
+                style={{ fontSize: 16, width: '100%', marginBottom: 10, paddingTop: 2, }}
+              >
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="headingCheckBox"
+                  name="headingFlag"
+                  checked={this.state.headingFlag}
+                  onChange={this.onChangeHeading}
+                  readOnly={this.props.readonly?'readonly':null}
+                />
+                <label className="form-check-label" htmlFor="headingCheckBox">見出し</label>
+              </div>
             </Col>
             <Col md={12}>
               {
@@ -147,7 +176,7 @@ export default class ScheduleEditDialog extends Component {
                   height={`${this.props.height}px`}
                   onChange={this.onChangeText}
                   showPrintMargin={false}
-                  fontSize={18}
+                  fontSize={16}
                   name="senario_editor"
                   editorProps={{$blockScrolling: Infinity}}
                   readOnly={this.props.readonly}
@@ -155,12 +184,19 @@ export default class ScheduleEditDialog extends Component {
               }
             </Col>
             <Col md={12}>
-              <input
+              <p style={{
+                textAlign: "right",
+                marginBottom: 0,
+                marginRight: 8,
+              }}>{this.props.dateInfo}</p>
+              {/* <input
                 type="text"
                 style={{ width: '100%', marginBottom: 10, }}
-                value={this.props.uuid}
+                value={this.props.dateInfo}
+                tabIndex={"-1"}
+                focusable={false}
                 readOnly
-              />
+              /> */}
             </Col>
           </Row>
         </Modal.Body>

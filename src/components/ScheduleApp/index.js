@@ -63,9 +63,14 @@ class App extends Component {
         b: 0,
         a: 1,
       }),
+      menu: AsyncStorage.getItem('menu', {
+        width: 100,
+        opened: false,
+      }),
       showScheduleDataDialog: false,
       scheduleData: '',
       calendarData: AsyncStorage.getItem('calendarData', {}),
+      focused: true,
     }
   }
 
@@ -127,6 +132,7 @@ class App extends Component {
   onEdit = (d) => {
     this.setState({
       showEditDialog: true,
+      focused: false,
       editBar: d,
     })
   }
@@ -183,11 +189,15 @@ class App extends Component {
     if ('scale' in event) {
       AsyncStorage.setItem('scale', event.scale);
     }
+    if ('menu' in event) {
+      AsyncStorage.setItem('menu', event.menu);
+    }
   }
 
   onClose = () => {
     this.setState({
       showEditDialog: false,
+      focused: true,
     })
   }
 
@@ -195,6 +205,7 @@ class App extends Component {
     const d = this.scheduleView.setBar(bar);
     this.setState({
       showEditDialog: false,
+      focused: true,
     }, () => this.saveBarData([ d ]));
   }
 
@@ -289,6 +300,7 @@ class App extends Component {
     }), null, '  ');
     this.setState({
       showScheduleDataDialog: true,
+      focused: false,
       scheduleData,
     });
   }
@@ -296,6 +308,7 @@ class App extends Component {
   onCloseScheduleData = () => {
     this.setState({
       showScheduleDataDialog: false,
+      focused: true,
     })
   }
 
@@ -441,6 +454,7 @@ class App extends Component {
             }}
             position={this.state.position}
             scale={this.state.scale}
+            menu={this.state.menu}
             onEdit={this.onEdit}
             onCreate={this.onCreate}
             onMove={this.onMove}
@@ -450,6 +464,7 @@ class App extends Component {
             onEditCalendar={this.onEditCalendar}
             barData={this.state.barData}
             calendarData={this.state.calendarData}
+            focused={this.state.focused}
             // readonly
           />
         </div>
@@ -460,6 +475,7 @@ class App extends Component {
           text={this.state.editBar.d.text}
           title={this.state.editBar.d.title}
           color={Utils.toColor(this.state.editBar.d.rgba)}
+          headingFlag={this.state.editBar.d.headingFlag}
           onClose={this.onClose}
           onEdited={this.onEdited}
           readonly={(this.state.editBar.d.info) ? this.state.editBar.d.info.readOnly : false}
