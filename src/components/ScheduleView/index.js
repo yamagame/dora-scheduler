@@ -110,6 +110,7 @@ export default class ScheduleView extends Component {
       calendarData: props.calendarData,
     }
     this.currentColor = [ 0, 255, 0 , 1 ];
+    this.currentTitlePos = { x: 1, y: 0 };
     this.focusDelayTimer = null;
     this.undoPtr = 0;
     this.undoBuffer = [];
@@ -164,6 +165,7 @@ export default class ScheduleView extends Component {
             })
 
         self.currentColor = d.rgba;
+        self.currentTitlePos = d.titlePos;
         self.updateBarSelectState();
 
         if (!self.props.readonly && !readOnly(d)) {
@@ -222,6 +224,7 @@ export default class ScheduleView extends Component {
             })
 
         self.currentColor = d.rgba;
+        self.currentTitlePos = d.titlePos;
         self.updateBarSelectState();
 
         if (!self.props.readonly && !readOnly(d)) {
@@ -271,6 +274,7 @@ export default class ScheduleView extends Component {
             })
         
         self.currentColor = d.rgba;
+        self.currentTitlePos = d.titlePos;
         self.updateBarSelectState();
 
         const selectedBar = cloneDeep(self.selectedBar)
@@ -377,6 +381,7 @@ export default class ScheduleView extends Component {
 
           if (self.selectedBar.length > 0) {
             self.currentColor = self.selectedBar[0].d.rgba;
+            self.currentTitlePos = self.selectedBar[0].d.titlePos;
           }
           self.updateBarSelectState();
         }
@@ -1626,7 +1631,7 @@ export default class ScheduleView extends Component {
         grid: true,
         rgba: this.currentColor,
         selected: true,
-        titlePos: { x:0, y: 0 },
+        titlePos: { ...this.currentTitlePos },
       }
       this.setUndo([null], [bar], 'new');
       this.onCreate(bar)
