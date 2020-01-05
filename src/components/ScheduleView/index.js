@@ -1975,7 +1975,7 @@ export default class ScheduleView extends Component {
     const barData = [ ...this.state.barData ]
     var data=[];
     var y = this.cursorData.y;
-    if (!this.cursorData.visible) return;
+    if (!this.cursorData.visible.h) return;
     // this.state.barData.forEach( v => {
     //   if (v.selected) {
     //     if (y==null || y > v.y) {
