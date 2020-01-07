@@ -101,7 +101,7 @@ export default class ScheduleEditDialog extends Component {
     }
   }
 
-  onEntered = () => {
+  onEnter = () => {
     this.setState({
       title: (this.props.title === null) ? '' : this.props.title,
       text:  (this.props.text === null) ? '' : this.props.text,
@@ -116,7 +116,7 @@ export default class ScheduleEditDialog extends Component {
         show={this.props.show}
         size="lg"
         onHide={this.onClose}
-        onEntered={this.onEntered}
+        onEnter={this.onEnter}
       >
         <Modal.Header closeButton>
           <Modal.Title>

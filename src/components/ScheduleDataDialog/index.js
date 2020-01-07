@@ -14,6 +14,7 @@ export default class ScheduleDataDialog extends Component {
     super(props);
     this.state = {
       text: props.text,
+      showError: null,
     }
   }
 
@@ -33,12 +34,25 @@ export default class ScheduleDataDialog extends Component {
 
   onEdited = () => {
     if (this.props.onEdited) {
-      this.props.onEdited(this.state.text);
+      this.props.onEdited(this.state.text, (err) => {
+        if (err) {
+          this.setState({
+            showError: '読み込みできませんでした。',
+          })
+        }
+      });
     }
   }
 
   onChangeText = (value) => {
     this.setState({ text: value });
+  }
+
+  onEnter = () => {
+    this.setState({
+      showError: null,
+      text: this.props.text,
+    })
   }
 
   render() {
@@ -47,6 +61,7 @@ export default class ScheduleDataDialog extends Component {
         show={this.props.show}
         size="lg"
         onHide={this.onClose}
+        onEnter={this.onEnter}
       >
         <Modal.Header closeButton>
           <Modal.Title>
@@ -55,6 +70,13 @@ export default class ScheduleDataDialog extends Component {
         </Modal.Header>
         <Modal.Body>
           <Row>
+            {
+              this.state.showError ? <Col md={12}>
+                <div class="alert alert-danger" role="alert">
+                  { this.state.showError }
+                </div>
+              </Col> : null
+            }
             <Col md={12}>
               {
                 <AceEditor

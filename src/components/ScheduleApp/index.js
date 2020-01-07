@@ -312,39 +312,23 @@ class App extends Component {
     })
   }
 
-  onEditedScheduleData = (scheduleData) => {
-    const barData =  [ ...this.state.barData ];
-    const cursor = this.scheduleView.cursorRectangles();
-    const bars = [];
+  onEditedScheduleData = (scheduleData, callback) => {
+    const barData =  [ ];
     try {
       const data = JSON.parse(scheduleData);
-      const a = {}
-      barData.forEach( v => {
-        delete v.selected;
-        a[v.uuid] = v;
-      })
       data.forEach( v => {
         v.rgba = toRGBA(v.rgba);
-        if (a[v.uuid]) {
-          Object.keys(v).forEach( k => {
-            a[v.uuid][k] = v[k];
-          })
-          bars.push(a[v.uuid]);
-        } else {
-          if (cursor.visible === 'visible') {
-            v.y += cursor.y;
-          }
-          v.selected = true;
-          bars.push(v);
-          barData.push(v);
-        }
+        barData.push(v);
       })
     } catch(err) {
+      callback(err);
+      return;
     }
     this.setState({
       showScheduleDataDialog: false,
+      focused: true,
       barData,
-    }, () => this.createBarData(bars))
+    }, () => this.createBarData(barData))
   }
 
   onEditCalendar = (calendarData) => {
