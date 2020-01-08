@@ -287,8 +287,7 @@ class App extends Component {
 
 
   openScheduleDataDialog = () => {
-    const selectedBars = this.state.barData.filter( v => v.selected );
-    const scheduleData = JSON.stringify(((selectedBars.length > 0) ? selectedBars : this.state.barData).map( v => {
+    const scheduleData = JSON.stringify(this.state.barData.map( v => {
       const w = { ...v }
       delete w.grid;
       delete w.selected;
