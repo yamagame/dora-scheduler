@@ -8,6 +8,50 @@ import {
 import AceEditor from 'react-ace';
 import 'brace/mode/plain_text';
 import 'brace/theme/chrome';
+import 'highlight.js/styles/github.css';
+import './index.css';
+
+const emoji = require('markdown-it-emoji');
+const hljs = require('highlight.js');
+const md = require('markdown-it')({
+  html: true,
+  linkify: true,
+  typographer: true,
+  highlight: function (str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(lang, str).value;
+      } catch (__) {}
+    }
+    return ''; // use external default escaping
+  }
+})
+.use(emoji)
+.use(require('markdown-it-sub'))
+.use(require('markdown-it-sup'))
+.use(require('markdown-it-deflist'))
+.use(require('markdown-it-footnote'))
+.use(require('markdown-it-ins'))
+.use(require('markdown-it-mark'));
+
+function Tab({ editor, readOnly, onChange}) {
+  if (readOnly) return null;
+  return (editor) ? <ul className="nav nav-tabs">
+    <li className="nav-item">
+      <a className="nav-link active" href="#">編集</a>
+    </li>
+    <li className="nav-item">
+      <a className="nav-link" href="#" onClick={() => onChange(false)}>表示</a>
+    </li>
+  </ul> : <ul className="nav nav-tabs">
+    <li className="nav-item">
+      <a className="nav-link" href="#" onClick={() => onChange(true)}>編集</a>
+    </li>
+    <li className="nav-item">
+      <a className="nav-link active" href="#">表示</a>
+    </li>
+  </ul>
+}
 
 const toRGBA = function(text) {
   try {
@@ -40,6 +84,7 @@ export default class ScheduleEditDialog extends Component {
       text: (props.text === null) ? '' : props.text,
       color:  (props.color === null) ? '#00FF00' : props.color,
       headingFlag: (props.headingFlag === null) ? false : props.headingFlag,
+      editor: true,
     }
   }
 
@@ -114,7 +159,7 @@ export default class ScheduleEditDialog extends Component {
     return (
       <Modal
         show={this.props.show}
-        size="lg"
+        size="xl"
         onHide={this.onClose}
         onEnter={this.onEnter}
       >
@@ -162,8 +207,13 @@ export default class ScheduleEditDialog extends Component {
               </div>
             </Col>
             <Col md={12}>
+              <Tab
+                editor={this.state.editor}
+                onChange={(editor) => this.setState({ editor })}
+                readOnly={this.props.readonly}
+              />
               {
-                <AceEditor
+                (this.state.editor && !this.props.readonly) ? <AceEditor
                   ref={ r => this.editor = r }
                   style={{
                     display: 'inline-block',
@@ -176,10 +226,22 @@ export default class ScheduleEditDialog extends Component {
                   height={`${this.props.height}px`}
                   onChange={this.onChangeText}
                   showPrintMargin={false}
-                  fontSize={16}
+                  fontSize={14}
                   name="senario_editor"
                   editorProps={{$blockScrolling: Infinity}}
                   readOnly={this.props.readonly}
+                /> : <div 
+                  className="schedule-preview-html"
+                  style={{
+                    display: 'inline-block',
+                    border: 'solid 1px lightgray',
+                    width: '100%',
+                    height: `${this.props.height}px`,
+                    overflow: 'auto',
+                    padding: 10,
+                  }}
+                  height={`${this.props.height}px`}
+                  dangerouslySetInnerHTML={{ __html: md.render(this.state.text) }}
                 />
               }
             </Col>
