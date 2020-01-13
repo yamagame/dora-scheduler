@@ -525,7 +525,19 @@ export default class ScheduleView extends Component {
 
     this.base
       .call(this.zoomBehavior)
-      .on('dblclick.zoom', null)
+      .on('dblclick.zoom', function() {
+        var coords = d3.mouse(this);
+        if (!self.props.readonly) {
+          const menuRect = self.menuButtonRectangle();
+          if (!intersect(menuRect, coords[0], coords[1]) && (!self.menuOpened || coords[0] > self.menuWidth) && coords[1] > self.yScale(unit*3)-self.yScale(0) && self.selectedBar.length === 0) {
+            const x = gridFitX(self, self.xScale.invert(coords[0]));
+            const y = gridFitY(self, self.yScale.invert(coords[1]));
+            self.createBar({ x, y, });
+          }
+        }
+      })
+      .on('click.zoom', () => {
+      })
       .call(this.dragMarky);
 
     this.zoomBehavior
@@ -1643,12 +1655,12 @@ export default class ScheduleView extends Component {
 
   }
 
-  createBar = () => {
-    if (!this.props.readonly && this.cursorData.visible.h && this.cursorData.visible.v) {
+  createBar = (pos) => {
+    if (!this.props.readonly) {
       const bar = {
         uuid: uuidv4(),
-        x: this.cursorData.x,
-        y: this.cursorData.y,
+        x: pos.x,
+        y: pos.y,
         width: unit,
         height: unit,
         title: '',
@@ -1661,9 +1673,9 @@ export default class ScheduleView extends Component {
       }
       this.setUndo([null], [bar], 'new');
       this.onCreate(bar)
-      this.cursorData.y += unit;
-      this.updateBar();
+      return true;
     }
+    return false;
   }
 
   deleteBar = () => {
@@ -1770,7 +1782,12 @@ export default class ScheduleView extends Component {
       //space key
       if(e.keyCode === 32) {
         e.preventDefault();
-        this.createBar();
+        if (this.cursorData.visible.h && this.cursorData.visible.v) {
+          if (this.createBar(this.cursorData)) {
+            this.cursorData.y += unit;
+            this.updateBar();
+          }
+        }
       }
       //enter key 
       if(e.keyCode === 13) {
