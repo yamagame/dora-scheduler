@@ -459,6 +459,7 @@ class App extends Component {
           title={this.state.editBar.d.title}
           color={Utils.toColor(this.state.editBar.d.rgba)}
           headingFlag={this.state.editBar.d.headingFlag}
+          dateInfo={this.scheduleView ? this.scheduleView.barDateText(this.state.editBar.d) : ''}
           onClose={this.onClose}
           onEdited={this.onEdited}
           readonly={(this.state.editBar.d.info) ? this.state.editBar.d.info.readOnly : false}
