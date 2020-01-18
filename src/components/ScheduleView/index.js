@@ -441,7 +441,7 @@ export default class ScheduleView extends Component {
     let zoomYPos = null;
 
     this.zoomBehavior = d3.zoom()
-      .scaleExtent([0.1, 1])
+      .scaleExtent([0.005, 1])
       .filter(() => {
         return !self.shiftKey;
       })
@@ -739,10 +739,85 @@ export default class ScheduleView extends Component {
         x: 0+Utils.timeZoneOffset, y: y, width: unit, height: unit, color: 'rgba(220,255,255,0.5)', type: 'horizontal',
       })
     }
-    for (var x = ox; x < dx + (unit * 2); x += (unit * 2)) {
-      this.gridData.push({
-        x: x+Utils.timeZoneOffset, y: 0, width: unit, height: unit, color: 'rgba(220,220,235,0.2)', type: 'vertical',
-      })
+    const _fontScaleX = (v) => {
+      const q = (this.xScale(v)-this.xScale(0))*gridScale;
+      return q;
+    }
+    const dayAlpha = () => {
+      const s = _fontScaleX(1);
+      if (s <= 0.8) {
+        if (s < 0.2) return 0;
+        return (s-0.2)/0.6;
+      }
+      return 1;
+    }
+    if (dayAlpha() > 0) {
+      const a = dayAlpha();
+      for (var x = ox; x < dx + (unit * 2); x += (unit * 2)) {
+        this.gridData.push({
+          x: x+Utils.timeZoneOffset, y: 0, width: unit, height: unit, color: `rgba(220,220,235,${0.2*a})`, type: 'vertical',
+        })
+      }
+    }
+    const monthAlpha = () => {
+      const s = _fontScaleX(1);
+      if (s <= 0.6) {
+        if (s < 0.02) return 0;
+        if (s >= 0.1) {
+          return (0.5-(s-0.1))/0.5;
+        }
+        if (s <= 0.05) {
+          return (s-0.02)/0.03;
+        }
+        return 1;
+      }
+      return 0;
+    }
+    if (monthAlpha() > 0) {
+      const a = monthAlpha();
+      const sx = new Date(ox*unitScale);
+      const ex = new Date((dx + (unit * 2))*unitScale);
+      let x = (new Date(`${sx.getFullYear()}/${sx.getMonth()+1}`));
+      let nextx = null;
+      while (x.getTime()/unitScale < dx + (unit * 2)) {
+        if (x.getMonth() >= 11) {
+          nextx = new Date(`${x.getFullYear()+1}/1`);
+        } else {
+          nextx = new Date(`${x.getFullYear()}/${x.getMonth()+2}`);
+        }
+        if ((x.getMonth() % 2) === 0) {
+          this.gridData.push({
+            x: x.getTime()/unitScale+Utils.timeZoneOffset, y: 0, width: (nextx.getTime()-x.getTime())/unitScale, height: unit, color: `rgba(220,220,235,${0.2*a})`, type: 'vertical',
+          })
+        }
+        x = nextx;
+      }
+    }
+    const yearAlpha = () => {
+      const s = _fontScaleX(1);
+      if (s <= 0.06) {
+        if (s < 0.03) {
+          return 1;
+        }
+        return (0.03-(s-0.03))/0.03;
+      }
+      return 0;
+    }
+    if (yearAlpha() > 0) {
+      const a = yearAlpha();
+      const sx = new Date(ox*unitScale);
+      const ex = new Date((dx + (unit * 2))*unitScale);
+      let x = (new Date(`${sx.getFullYear()+1}/1`));
+      let nextx = null;
+      while (x.getTime()/unitScale < dx + (unit * 2)) {
+        nextx = new Date(`${x.getFullYear()+1}/1`);
+        if ((x.getFullYear() % 2) === 0) {
+          this.gridData.push({
+            x: x.getTime()/unitScale+Utils.timeZoneOffset, y: 0, width: (nextx.getTime()-x.getTime())/unitScale, height: unit, color: `rgba(220,220,235,${0.2*a})`, type: 'vertical',
+          })
+        }
+        x = nextx;
+      }
     }
   }
 
@@ -756,6 +831,12 @@ export default class ScheduleView extends Component {
     const month = {};
     const unitTime = unit*unitScale;
     const dayCell = [];
+
+    const _fontScaleX = (v) => {
+      const q = (this.xScale(v)-this.xScale(0))*gridScale;
+      return q;
+    }
+    const a = _fontScaleX(1);
 
     //日
     for (var x=x1;x<=x2;x+=unit) {
@@ -788,23 +869,26 @@ export default class ScheduleView extends Component {
           color = d.color;
         }
       }
-      dayCell.push({
-        x: x+Utils.timeZoneOffset,
-        y: unit*2,
-        width: unit,
-        height: unit,
-        color,
-        type: 'calendar',
-        dateType: 'day',
-        text: date.getDate(),
-        time: date,
-      });
+      if (a > 0.1) {
+        dayCell.push({
+          x: x+Utils.timeZoneOffset,
+          y: unit*2,
+          width: unit,
+          height: unit,
+          color,
+          type: 'calendar',
+          dateType: 'day',
+          text: date.getDate(),
+          time: date,
+        });
+      }
     }
 
     //年
     Object.keys(years).map(v => parseInt(v)).sort().forEach( (k, i) => {
       const v = years[k];
-      const color = "rgba(250,250,250,255)";
+      const d = parseInt(k) % 2;
+      const color = d === 0 ? "rgba(250,250,250,255)" : "rgba(240,240,255,255)";
       this.calendarData.push({
         x: Math.max(v.start/unitScale+Utils.timeZoneOffset, r1),
         y: 0,
@@ -982,14 +1066,16 @@ export default class ScheduleView extends Component {
         }
       })
       .on('click', (d) => {
-        const x = d.time.getTime()/unitScale+Utils.timeZoneOffset;
-        if (this.cursorData.visible.v && x == this.cursorData.x) {
-          this.cursorData.visible.v = false;
-        } else {
-          this.cursorData.x = x;
-          this.cursorData.visible.v = true;
+        if (d.time) {
+          const x = d.time.getTime()/unitScale+Utils.timeZoneOffset;
+          if (this.cursorData.visible.v && x == this.cursorData.x) {
+            this.cursorData.visible.v = false;
+          } else {
+            this.cursorData.x = x;
+            this.cursorData.visible.v = true;
+          }
+          this.redrawCursor();
         }
-        this.redrawCursor();
       })
 
     calendar
@@ -1018,11 +1104,12 @@ export default class ScheduleView extends Component {
       const q = (this.xScale(v)-this.xScale(0))*gridScale;
       return q;
     }
+
     const fontScaleX = (d) => {
       return d.dateType === 'day' ? (_fontScaleX(1) >= 1 ? 1 : _fontScaleX(1)) : 1;
     }
     const faceFont = (d) => {
-      const s = _fontScaleX(1)*gridScale;
+      const s = _fontScaleX(d);
       if (s <= 0.8) {
         if (s < 0.2) return 0;
         return ((s-0.2)/0.6)*0.8;
@@ -1032,7 +1119,17 @@ export default class ScheduleView extends Component {
 
     calendar
       .selectAll('text')
-      .data(this.calendarRectangles().filter( d => d.dateType !== 'day' || faceFont(d) > 0 ))
+      .data(this.calendarRectangles().filter( d => {
+        switch (d.dateType) {
+        case 'day':
+          return faceFont(1) > 0;
+        case 'month':
+          return faceFont(10) > 0;
+        default:
+          break;
+        }
+        return true;
+      }))
       .enter()
       .append('text')
       .attr('x', d => this.xScale(d.x+d.width/2)/fontScaleX(d))
@@ -1043,7 +1140,17 @@ export default class ScheduleView extends Component {
       .attr('font-size', fontSize)
       .attr('transform', d => `scale(${fontScaleX(d)},1)`)
       .attr('fill', 'black')
-      .attr('fill-opacity' , d => d.dateType === 'day' ? faceFont(d) : 0.8)
+      .attr('fill-opacity' , d => {
+        switch (d.dateType) {
+        case 'day':
+          return faceFont(1);
+        case 'month':
+          return faceFont(10);
+        default:
+          break;
+        }
+        return 0.8;
+      })
       .attr('visibility', 'visible')
       .style('pointer-events', 'none')
       .style('font-weight', 'bold')
