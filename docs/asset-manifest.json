@@ -1,9 +1,9 @@
 {
-  "main.css": "/dora-scheduler/static/css/main-scheduler.462d5c89.css",
-  "main.js": "/dora-scheduler/static/js/main-scheduler.989d2e98.js",
-  "main.js.map": "/dora-scheduler/static/js/main-scheduler.989d2e98.js.map",
-  "static/css/main-scheduler.462d5c89.css.map": "/dora-scheduler/static/css/main-scheduler.462d5c89.css.map",
+  "main.css": "/dora-scheduler/static/css/main-scheduler.19719483.css",
+  "main.js": "/dora-scheduler/static/js/main-scheduler.6c61f1b9.js",
+  "main.js.map": "/dora-scheduler/static/js/main-scheduler.6c61f1b9.js.map",
+  "static/css/main-scheduler.19719483.css.map": "/dora-scheduler/static/css/main-scheduler.19719483.css.map",
   "index.html": "/dora-scheduler/index.html",
-  "precache-manifest.de564113f9c4ef32fcafcae6ae068e4f.js": "/dora-scheduler/precache-manifest.de564113f9c4ef32fcafcae6ae068e4f.js",
+  "precache-manifest.743019bdc59829f1a906eeebfe17c676.js": "/dora-scheduler/precache-manifest.743019bdc59829f1a906eeebfe17c676.js",
   "service-worker.js": "/dora-scheduler/service-worker.js"
 }
