@@ -441,7 +441,7 @@ export default class ScheduleView extends Component {
     let zoomYPos = null;
 
     this.zoomBehavior = d3.zoom()
-      .scaleExtent([0.005, 1])
+      .scaleExtent([0.006, 1])
       .filter(() => {
         return !self.shiftKey;
       })
@@ -838,6 +838,30 @@ export default class ScheduleView extends Component {
     }
     const a = _fontScaleX(1);
 
+    this.calendarData.push({
+      x: x1+Utils.timeZoneOffset,
+      y: unit,
+      width: x2-x1,
+      height: 0,
+      color: "rgba(235,235,235,255)",
+      type: 'calendar',
+      dateType: 'bg',
+      text: null,
+      time: null,
+    })
+
+    this.calendarData.push({
+      x: x1+Utils.timeZoneOffset,
+      y: unit*2,
+      width: x2-x1,
+      height: 0,
+      color: 'white',
+      type: 'calendar',
+      dateType: 'bg',
+      text: null,
+      time: null,
+    })
+
     //日
     for (var x=x1;x<=x2;x+=unit) {
       const date = new Date(x*unitScale);
@@ -921,15 +945,6 @@ export default class ScheduleView extends Component {
           type: 'calendar',
           dateType: 'month',
           text: v.month,
-        })
-        this.calendarData.push({
-          x: Math.max(v.start/unitScale+Utils.timeZoneOffset, r1),
-          y: unit*2,
-          width: (Math.min(v.end/unitScale, x2)-Math.max(v.start/unitScale, r1)),
-          height: unit,
-          color: 'white',
-          type: 'calendar',
-          dateType: 'dayBG',
         })
       }
     })
@@ -1026,6 +1041,24 @@ export default class ScheduleView extends Component {
   updateCalendar = () => {
     const { unit, } = this.props;
     const calendar = this.calendar;
+
+    const _fontScaleX = (v) => {
+      const q = (this.xScale(v)-this.xScale(0))*gridScale;
+      return q;
+    }
+
+    const fontScaleX = (d) => {
+      return d.dateType === 'day' ? (_fontScaleX(1) >= 1 ? 1 : _fontScaleX(1)) : 1;
+    }
+    const faceFont = (d) => {
+      const s = _fontScaleX(d);
+      if (s <= 0.8) {
+        if (s < 0.2) return 0;
+        return ((s-0.2)/0.6)*0.8;
+      }
+      return 0.8;
+    }
+
     calendar
       .selectAll('path')
       .remove();
@@ -1034,7 +1067,20 @@ export default class ScheduleView extends Component {
       .remove();
     calendar
       .selectAll('path.date')
-      .data(this.calendarRectangles().filter( v => v.color != null))
+      .data(this.calendarRectangles().filter( d => {
+        if (d.color != null) {
+          switch (d.dateType) {
+          case 'day':
+            return faceFont(1) > 0;
+          case 'month':
+            return faceFont(10) > 0;
+          default:
+            break;
+          }
+          return true;
+        }
+        return false;
+      }))
       .enter()
       .append('path')
       .attr('class', 'date')
@@ -1099,23 +1145,6 @@ export default class ScheduleView extends Component {
       .attr('stroke-width', 2)
       .style("pointer-events", "none")
       .attr('d', this.drawRectangle);
-
-    const _fontScaleX = (v) => {
-      const q = (this.xScale(v)-this.xScale(0))*gridScale;
-      return q;
-    }
-
-    const fontScaleX = (d) => {
-      return d.dateType === 'day' ? (_fontScaleX(1) >= 1 ? 1 : _fontScaleX(1)) : 1;
-    }
-    const faceFont = (d) => {
-      const s = _fontScaleX(d);
-      if (s <= 0.8) {
-        if (s < 0.2) return 0;
-        return ((s-0.2)/0.6)*0.8;
-      }
-      return 0.8;
-    }
 
     calendar
       .selectAll('text')
