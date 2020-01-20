@@ -25,7 +25,7 @@ const socket = (process.env.REACT_APP_MODE !== 'demo') ? io('/bar') : {};
 const namespace = 'dora-counter';
 const manualURL = "https://docs.google.com/presentation/d/1QmfyJHkg_8y5yuyrvERJvfAd0OBPntpdwwdnrJailGo/edit?usp=sharing";
 
-const AsyncStorage = {
+const storage = {
   getItem: function(key, defaultValue) {
     const value = localStorage.getItem(`${namespace}-${key}`);
     return (value !== null) ? JSON.parse(value).data : defaultValue;
@@ -44,11 +44,11 @@ class App extends Component {
       height: window.innerHeight,
       barData: [
       ].filter( v => v !== null ),
-      position: AsyncStorage.getItem('position', {
+      position: storage.getItem('position', {
         x: now,
         y: 0,
       }),
-      scale: AsyncStorage.getItem('scale', 2),
+      scale: storage.getItem('scale', 2),
       showEditDialog: false,
       editBar: {
         d: {
@@ -57,19 +57,19 @@ class App extends Component {
         i: 0,
       },
       showColorPickerDialog: false,
-      color: AsyncStorage.getItem('color', {
+      color: storage.getItem('color', {
         r: 0,
         g: 0xff,
         b: 0,
         a: 1,
       }),
-      menu: AsyncStorage.getItem('menu', {
+      menu: storage.getItem('menu', {
         width: 100,
         opened: false,
       }),
       showScheduleDataDialog: false,
       scheduleData: '',
-      calendarData: AsyncStorage.getItem('calendarData', {}),
+      calendarData: storage.getItem('calendarData', {}),
       focused: true,
     }
   }
@@ -144,7 +144,7 @@ class App extends Component {
       return t;
     })
     this.props.saveBarData(bars);
-    // AsyncStorage.setItem('barData', this.state.barData.map( v => {
+    // storage.setItem('barData', this.state.barData.map( v => {
     //   const t = { ...v }
     //   delete t.selected;
     //   return t;
@@ -158,7 +158,7 @@ class App extends Component {
       return t;
     })
     this.props.createBarData(bars);
-    // AsyncStorage.setItem('barData', this.state.barData.map( v => {
+    // storage.setItem('barData', this.state.barData.map( v => {
     //   const t = { ...v }
     //   delete t.selected;
     //   return t;
@@ -184,13 +184,13 @@ class App extends Component {
       })
     }
     if ('position' in event) {
-      AsyncStorage.setItem('position', event.position);
+      storage.setItem('position', event.position);
     }
     if ('scale' in event) {
-      AsyncStorage.setItem('scale', event.scale);
+      storage.setItem('scale', event.scale);
     }
     if ('menu' in event) {
-      AsyncStorage.setItem('menu', event.menu);
+      storage.setItem('menu', event.menu);
     }
   }
 
@@ -222,7 +222,7 @@ class App extends Component {
           this.setState({
             color,
           })
-          AsyncStorage.setItem('color', color);
+          storage.setItem('color', color);
         } catch(err) {
         }
       }
@@ -267,7 +267,7 @@ class App extends Component {
       color: color.rgb,
     }, () => {
       const col = this.state.color;
-      AsyncStorage.setItem('color', col);
+      storage.setItem('color', col);
       const bars = this.state.barData.filter( bar => bar.selected );
       bars.forEach( bar => {
         if (bar.selected) {
@@ -331,7 +331,7 @@ class App extends Component {
   }
 
   onEditCalendar = (calendarData) => {
-    AsyncStorage.setItem('calendarData', calendarData);
+    storage.setItem('calendarData', calendarData);
     if (this.props.saveCalendarData) this.props.saveCalendarData(calendarData)
   }
 
