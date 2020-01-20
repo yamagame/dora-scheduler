@@ -20,7 +20,7 @@ import {
 
 const manualURL = "https://docs.google.com/presentation/d/1QmfyJHkg_8y5yuyrvERJvfAd0OBPntpdwwdnrJailGo/edit?usp=sharing";
 
-const AsyncStorage = {
+const storage = {
   getItem: function(key, defaultValue) {
     const value = localStorage.getItem(key);
     return (value !== null) ? JSON.parse(value).data : defaultValue;
@@ -43,9 +43,9 @@ class ScheduleApp extends Component {
     super(props, context);
 
     const now = Utils.dayPosition((new Date()).getTime());
-    const files = AsyncStorage.getItem('scheduleFiles', {});
-    const filename = AsyncStorage.getItem('scheduleFilename', 'MySchedule');
-    const barData = AsyncStorage.getItem('barData', []);
+    const files = storage.getItem('scheduleFiles', {});
+    const filename = storage.getItem('scheduleFilename', 'MySchedule');
+    const barData = storage.getItem('barData', []);
 
     this.state = {
       width: window.innerWidth,
@@ -53,11 +53,11 @@ class ScheduleApp extends Component {
       barData: [
         ...barData,
       ].filter( v => v !== null ),
-      position: AsyncStorage.getItem('position', {
+      position: storage.getItem('position', {
         x: now,
         y: 0,
       }),
-      scale: AsyncStorage.getItem('scale', 2),
+      scale: storage.getItem('scale', 2),
       showEditDialog: false,
       editBar: {
         d: {
@@ -66,19 +66,19 @@ class ScheduleApp extends Component {
         i: 0,
       },
       showColorPickerDialog: false,
-      color: AsyncStorage.getItem('color', {
+      color: storage.getItem('color', {
         r: 0,
         g: 0xff,
         b: 0,
         a: 1,
       }),
-      menu: AsyncStorage.getItem('menu', {
+      menu: storage.getItem('menu', {
         width: 100,
         opened: false,
       }),
       showScheduleDataDialog: false,
       scheduleData: '',
-      calendarData: AsyncStorage.getItem('calendarData', {}),
+      calendarData: storage.getItem('calendarData', {}),
       focused: true,
       files: Object.keys(files),
       filename,
@@ -117,15 +117,15 @@ class ScheduleApp extends Component {
       delete t.selected;
       return t;
     })
-    AsyncStorage.setItem('barData', barData);
-    const files = AsyncStorage.getItem('scheduleFiles', {});
+    storage.setItem('barData', barData);
+    const files = storage.getItem('scheduleFiles', {});
     if (files[this.state.filename] == null) {
       files[this.state.filename] = {};
     }
     files[this.state.filename].barData = barData;
     files[this.state.filename].position = this.state.position;
     files[this.state.filename].scale = this.state.scale;
-    AsyncStorage.setItem(`scheduleFiles`, files);
+    storage.setItem(`scheduleFiles`, files);
   }
 
   onCreate = (d) => {
@@ -150,33 +150,33 @@ class ScheduleApp extends Component {
       }, this.saveBarData)
     }
     if ('position' in event) {
-      AsyncStorage.setItem('position', event.position);
+      storage.setItem('position', event.position);
       this.setState({
         position: event.position,
       }, () => {
-        const files = AsyncStorage.getItem('scheduleFiles', {});
+        const files = storage.getItem('scheduleFiles', {});
         if (files[this.state.filename] == null) {
           files[this.state.filename] = {};
         }
         files[this.state.filename].position = this.state.position;
-        AsyncStorage.setItem(`scheduleFiles`, files);
+        storage.setItem(`scheduleFiles`, files);
       })
     }
     if ('scale' in event) {
-      AsyncStorage.setItem('scale', event.scale);
+      storage.setItem('scale', event.scale);
       this.setState({
         scale: event.scale,
       }, () => {
-        const files = AsyncStorage.getItem('scheduleFiles', {});
+        const files = storage.getItem('scheduleFiles', {});
         if (files[this.state.filename] == null) {
           files[this.state.filename] = {};
         }
         files[this.state.filename].scale = this.state.scale;
-        AsyncStorage.setItem(`scheduleFiles`, files);
+        storage.setItem(`scheduleFiles`, files);
       })
     }
     if ('menu' in event) {
-      AsyncStorage.setItem('menu', event.menu);
+      storage.setItem('menu', event.menu);
     }
   }
 
@@ -236,7 +236,7 @@ class ScheduleApp extends Component {
           this.setState({
             color,
           })
-          AsyncStorage.setItem('color', color);
+          storage.setItem('color', color);
         } catch(err) {
         }
       }
@@ -249,7 +249,7 @@ class ScheduleApp extends Component {
       color: color.rgb,
     }, () => {
       const col = this.state.color;
-      AsyncStorage.setItem('color', col);
+      storage.setItem('color', col);
       const barData = [ ...this.state.barData ];
       const bars = barData.filter( bar => bar.selected );
       bars.forEach( bar => {
@@ -272,8 +272,9 @@ class ScheduleApp extends Component {
   }
 
   openScheduleDataPicker = () => {
+    this.saveBarData();
     this.setState({
-      files: Object.keys(AsyncStorage.getItem('scheduleFiles', {})),
+      files: Object.keys(storage.getItem('scheduleFiles', {})),
       selectFilename: this.state.filename,
       editMode: false,
     })
@@ -324,7 +325,7 @@ class ScheduleApp extends Component {
   }
 
   onEditCalendar = (calendarData) => {
-    AsyncStorage.setItem('calendarData', calendarData);
+    storage.setItem('calendarData', calendarData);
   }
 
   onCreateBar = () => {
@@ -336,7 +337,7 @@ class ScheduleApp extends Component {
   }
 
   createSchedule = (filename) => {
-    const files = AsyncStorage.getItem('scheduleFiles', {});
+    const files = storage.getItem('scheduleFiles', {});
     if (files[filename]) {
       const { barData, position, scale } = files[filename];
       this.setState({
@@ -346,7 +347,7 @@ class ScheduleApp extends Component {
         filename,
         editMode: true,
       }, () => {
-        AsyncStorage.setItem('scheduleFilename', filename);
+        storage.setItem('scheduleFilename', filename);
         this.saveBarData()
       })
     } else {
@@ -355,36 +356,40 @@ class ScheduleApp extends Component {
         position: this.state.position,
         scale: this.state.scale,
       };
-      AsyncStorage.setItem(`scheduleFiles`, files);
+      storage.setItem(`scheduleFiles`, files);
       this.setState({
         barData: [],
         filename,
         editMode: true,
       }, () => {
-        AsyncStorage.setItem('scheduleFilename', filename);
+        storage.setItem('scheduleFilename', filename);
         this.saveBarData()
       })
     }
   }
 
   deleteSchedule = (filename) => {
-    const files = AsyncStorage.getItem('scheduleFiles', {});
+    const files = storage.getItem('scheduleFiles', {});
     if (files[filename]) {
-      let filenames = Object.keys(AsyncStorage.getItem('scheduleFiles', {}));
+      let filenames = Object.keys(storage.getItem('scheduleFiles', {}));
       let i = filenames.indexOf(filename);
       if (i >= 0) {
         let nextfile = 'MySchedule';
         if (filenames.length > 1) {
-          nextfile = filenames[i+1];
+          if (i+1 >= filenames.length) {
+            nextfile = filenames[0];
+          } else {
+            nextfile = filenames[i+1];
+          }
         }
         delete files[filename];
-        AsyncStorage.setItem(`scheduleFiles`, files);
+        storage.setItem(`scheduleFiles`, files);
         this.setState({
           files: filenames.filter( f => f !== filename ),
           filename: this.state.filename == filename ? nextfile : this.state.filename,
           selectFilename: nextfile,
         }, () => {
-          AsyncStorage.setItem('scheduleFilename', this.state.filename);
+          storage.setItem('scheduleFilename', this.state.filename);
         })
       }
     }
@@ -403,13 +408,17 @@ class ScheduleApp extends Component {
   }
 
   onOpenSchedule = () => {
-    this.createSchedule(this.state.selectFilename);
+    if (this.state.selectFilename && this.state.selectFilename.trim() !== '') {
+      this.createSchedule(this.state.selectFilename);
+    }
   }
 
   onDeleteSchedule = () => {
-    this.setState({
-      show_delete_file: true,
-    })
+    if (this.state.selectFilename && this.state.selectFilename.trim() !== '') {
+      this.setState({
+        show_delete_file: true,
+      })
+    }
   }
 
   render() {
@@ -456,8 +465,14 @@ class ScheduleApp extends Component {
           filename={this.state.selectFilename}
           data={ this.state.files.map( v => { return { filename: v } }) }
           onClose={() => {
+            let selectFilename = this.state.selectFilename;
+            let filenames = Object.keys(storage.getItem('scheduleFiles', {}));
+            if (filenames.length <= 0) {
+              selectFilename = 'MySchedule';
+            }
             this.setState({
               editMode: true,
+              selectFilename,
             })
           }}
           onSelect={this.onSelectSchedule}
@@ -468,6 +483,11 @@ class ScheduleApp extends Component {
         <Modal
           show={this.state.show_create_file}
           size="lg"
+          onEnter={() => {
+            this.setState({
+              new_filename: '',
+            });
+          }}
           onHide={() => {
             this.setState({
               show_create_file: false,
@@ -499,11 +519,13 @@ class ScheduleApp extends Component {
               });
             }}>キャンセル</Button>
             <Button onClick={() => {
-              this.setState({
-                show_create_file: false,
-              }, () => {
-                this.createSchedule(this.state.new_filename);
-              });
+              if (this.state.new_filename && this.state.new_filename.trim() !== '') {
+                this.setState({
+                  show_create_file: false,
+                }, () => {
+                  this.createSchedule(this.state.new_filename);
+                });
+              }
             }}>作成</Button>
           </Modal.Footer>
         </Modal>
