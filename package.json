@@ -8,7 +8,7 @@
     "@testing-library/user-event": "^12.1.10",
     "bootstrap": "^4.6.0",
     "clone-deep": "^4.0.1",
-    "d3": "^5.7.0",
+    "d3": "^7.6.1",
     "highlight.js": "^10.4.1",
     "load-script": "^1.0.0",
     "markdown-it": "^12.3.2",
